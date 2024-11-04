@@ -1,14 +1,5 @@
 # Work
 
-The work consists on implementing a shuffled version of AES (S-AES), which will be similar to AES
-but with an extra 128-bit key (shuffling key, SK)
-
-S-AES will operate as AES, but with two differences:
-
- * Shuffled Round Keys
-
- * One Modified Round
-
 ## Documentation:
 
  * https://www.youtube.com/watch?v=O4xNJsjtN6E
