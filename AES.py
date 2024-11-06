@@ -7,6 +7,7 @@ from constants import SBOX, SBOX_INV
 def subBytes(state):
     for i in range(len(state)):
         state[i] = SBOX[state[i]]
+        
 def subBytesInv(state):
     for i in range(len(state)):
         state[i] = SBOX_INV[state[i]]
