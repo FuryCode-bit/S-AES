@@ -1,94 +1,84 @@
-from constants import *
-'''
-Steps in AES encryption:
+from copy import copy
+from constants import SBOX, SBOX_INV
 
-Addition of the first round key
-9 Rounds:
-    Substitute Bytes (S-Box)
-    Shift Rows
-    Mix Columns
-    Adding the Round Key
-The final round
-    Substitute Bytes  (S-Box)
-    Shift Rows
-    Adding the Round Key
+# Based from https://gist.github.com/raullenchai/2920069 and 
+# https://femionewin.medium.com/aes-encryption-with-python-step-by-step-3e3ab0b0fd6c
+
+def subBytes(state):
+    for i in range(len(state)):
+        state[i] = SBOX[state[i]]
+        
+def subBytesInv(state):
+    for i in range(len(state)):
+        state[i] = SBOX_INV[state[i]]
+
+def rotate(word, n):
+    return word[n:]+word[0:n]
+
+def shiftRows(state):
+    for i in range(4):
+        state[i*4:i*4+4] = rotate(state[i*4:i*4+4],i)
+def shiftRowsInv(state):
+    for i in range(4):
+        state[i*4:i*4+4] = rotate(state[i*4:i*4+4],-i)
+
+#Example of the original data
+state=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+
+# subBytes(state)
+# print("s-box: ", state)
+
+# subBytesInv(state)
+# print("inverse of s-box: ", state)
+
+def galoisMult(a, b):
+    p = 0
+    hiBitSet = 0
+    for i in range(8):
+        if b & 1 == 1:
+            p ^= a
+        hiBitSet = a & 0x80
+        a <<= 1
+        if hiBitSet == 0x80:
+            a ^= 0x1b
+        b >>= 1
+    return p % 256
+
+def mixColumn(column):
+    temp = copy(column)
+    column[0] = galoisMult(temp[0],2) ^ galoisMult(temp[3],1) ^ \
+                galoisMult(temp[2],1) ^ galoisMult(temp[1],3)
+    column[1] = galoisMult(temp[1],2) ^ galoisMult(temp[0],1) ^ \
+                galoisMult(temp[3],1) ^ galoisMult(temp[2],3)
+    column[2] = galoisMult(temp[2],2) ^ galoisMult(temp[1],1) ^ \
+                galoisMult(temp[0],1) ^ galoisMult(temp[3],3)
+    column[3] = galoisMult(temp[3],2) ^ galoisMult(temp[2],1) ^ \
+      galoisMult(temp[1],1) ^ galoisMult(temp[0],3)
     
-'''
-
-
-def rot_word(word):
-    """Rotate a word one byte to the left"""
-    return word[1:] + word[:1]
-
-def xor_words(word1, word2):
-    """XOR two words byte by byte"""
-    return [w1 ^ w2 for w1, w2 in zip(word1, word2)]
-
-def sub_word(word):
-    return [SBOX[b] for b in word]
-
-class AES:
+def mixColumnInv(column):
+    temp = copy(column)
+    column[0] = galoisMult(temp[0],14) ^ galoisMult(temp[3],9) ^ \
+                galoisMult(temp[2],13) ^ galoisMult(temp[1],11)
+    column[1] = galoisMult(temp[1],14) ^ galoisMult(temp[0],9) ^ \
+                galoisMult(temp[3],13) ^ galoisMult(temp[2],11)
+    column[2] = galoisMult(temp[2],14) ^ galoisMult(temp[1],9) ^ \
+                galoisMult(temp[0],13) ^ galoisMult(temp[3],11)
+    column[3] = galoisMult(temp[3],14) ^ galoisMult(temp[2],9) ^ \
+      galoisMult(temp[1],13) ^ galoisMult(temp[0],11)
     
-    def key_expansion(key):
-        #Step 0: Key Expansion
-        nk = 4  #The key is 128 bits, so 4 words of 32 bits each
-        nr = 10 #The number of roundKeys is 10
-        
-        # Round constant words
-        # https://en.wikipedia.org/wiki/AES_key_schedule
-        
-        rcon = [
-            [0x01, 0x00, 0x00, 0x00],
-            [0x02, 0x00, 0x00, 0x00],
-            [0x04, 0x00, 0x00, 0x00],
-            [0x08, 0x00, 0x00, 0x00],
-            [0x10, 0x00, 0x00, 0x00],
-            [0x20, 0x00, 0x00, 0x00],
-            [0x40, 0x00, 0x00, 0x00],
-            [0x80, 0x00, 0x00, 0x00],
-            [0x1b, 0x00, 0x00, 0x00],
-            [0x36, 0x00, 0x00, 0x00]
-        ]
-        
-        #Convert the key to a list of bytes
-        key_bytes = list(key)
-        
-        #Initialize the expanded key
-        #The expanded key is a list of 4-word lists
-        expanded_key = [0] * (4 * (nr + 1) * 4)
+# g = [1,2,3,4]
+# mixColumn(g)
+# print ('Mixed: ',g)
+# mixColumnInv(g)
+# print ('Inverse mixed', g)
 
-        #Copy the key to the first 4 words of the expanded key
-        expanded_key[0:16] = key_bytes
-        
-        #Generate the rest of the expanded key
-        for i in range(nk, (nr + 1)*4):    
-            
-            temp = expanded_key[(i-1)*4:i*4]
-            
-            if i % nk == 0:
-                temp = xor_words(sub_word(rot_word(temp)), rcon[i // nk - 1])
-            
-            elif i % nk == 4:
-                temp = AES.s_box(temp)
-            
-            expanded_key[i*4:(i+1)*4] = xor_words(expanded_key[(i - nk) * 4:i * 4], temp)
-        
-        #Convert the expanded key to a list of 16-byte round keys
-        round_keys = []
-        for i in range(nr):
-            start = i * 16
-            round_key = expanded_key[start:start+16]
-            round_keys.append(round_key)
-            
-        return round_keys
-        
-        
-        
-        
-        
-            
-            
-        
+def addRoundKey(state, roundKey):
+    for i in range(len(state)):
+     state[i] = state[i] ^ roundKey[i]
 
-
-
+# state=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+# roundkey=[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,1]
+# addRoundKey(state,roundkey)
+# print(state)
+# addRoundKey(state,roundkey)
+# print(state)
