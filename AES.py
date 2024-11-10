@@ -487,4 +487,5 @@ def saes_decrypt(self, ciphertext):
     # Combine all decrypted blocks and remove padding
     padded_plaintext = b''.join(plaintext_blocks)
     plaintext = unpad_pkcs7(padded_plaintext)
+
     return plaintext

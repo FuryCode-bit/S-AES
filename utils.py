@@ -48,7 +48,7 @@ def transform_key(key):
 
 def sub_bytes(column):
 
-    transformed_column = []  # Initialize a new list to store transformed bytes
+    transformed_column = []
 
     for byte in column:
         # Apply SubBytes transformation to each byte in the column
@@ -108,10 +108,7 @@ def unpad_pkcs7(m_padded):
     return m_padded[:-padding_length]
 
 def create_inv_s_box_shuffled():
-    """
-    Creates and returns a list of 256 elements, all initialized to -1.
-    This can serve as a placeholder for the inverse S-box.
-    """
+
     shuffle_matrix = []
 
     for _ in range(256):
