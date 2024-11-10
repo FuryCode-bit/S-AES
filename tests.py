@@ -7,8 +7,6 @@ print("\nExample Key Schedules:")
 print('2b7e151628aed2a6abf7158809cf4f3c')  # AES-128 example
 key = bytes.fromhex('2b7e151628aed2a6abf7158809cf4f3c')
 
-# Não está a contar com o padding
-
 expected_round_keys = [
     '2b7e151628aed2a6abf7158809cf4f3c',  # Initial key
     'a0fafe1788542cb123a339392a6c7605',  # Round 1

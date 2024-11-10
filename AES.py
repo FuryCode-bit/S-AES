@@ -19,27 +19,31 @@ The final round
 
 class AES:
 
-    global round_key_offset
-    global mix_columns_offset
-
-    shuffle_key_number = None
-
-    shuffle_round = None
-
-    # Initialization of shuffled sbox and respective inverse
-    s_box_shuffled = []
-    inv_s_box_shuffled = create_inv_s_box_shuffled()
-
     def __init__(self, key, skey=None):
         self.key = key
         self.skey = skey
-        self.round_keys = self.key_expansion() 
+        self.round_keys = self.key_expansion()
+        self.round_key_offset = 0
+        self.mix_columns_offset = 0
+
+        self.shuffle_key_number = 0
+
+        self.shuffle_round = 0
+
+        # Initialization of shuffled sbox and respective inverse
+        self.s_box_shuffled = []
+        self.inv_s_box_shuffled = create_inv_s_box_shuffled()
         
+    ## Missing shuffle_key_expansion
     def key_expansion(self):
-        #Step 0: Key Expansion
+        
         nk = 4  #The key is 128 bits, so 4 words of 32 bits each
         nr = 10 #The number of roundKeys is 10
-        key = self.key
+        
+        if self.skey:
+            key = self.skey
+        else:
+            key = self.key
         
         
         #Convert the key to a list of bytes
@@ -69,7 +73,6 @@ class AES:
             round_key = expanded_key[start:start+16]
             round_keys.append(round_key)
         
-        self.round_keys = round_keys
         return round_keys
     
     def sub_box(self, block, shuffled=False):
@@ -79,23 +82,23 @@ class AES:
                 if not shuffled:
                     block[i][j] = SUBSTITUTION_BOX_INV[block[i][j]]
                 else:
-                    block[i][j] = self.inv_s_box_shuffled[block[i][j]]
+                    block[i][j] = self.s_box_shuffled[block[i][j]]
         return block
     
-    def shift_rows(self, block, shuffled=False):
+    def shift_rows(self, matrix, shuffled=False):
         if not shuffled:
             for i in range(4):
-                block[i] = block[i][i:] + block[i][:i]
+                matrix[i] = matrix[i][i:] + matrix[i][:i]
         else:
             # Shuffled Shift Rows
             index = int(self.shuffle_key_number % len(PERMUTATIONS))
             perm = PERMUTATIONS[index]
             for i in range(4):
-                temp = [block[(perm[i] + j) % 4][i] for j in range(4)]
+                temp = [matrix[(perm[i] + j) % 4][i] for j in range(4)]
                 for j in range(4):
-                    block[j][i] = temp[j]
+                    matrix[j][i] = temp[j]
 
-        return block
+        return matrix
     
     def gmul(self, a, b):
         """Galois Field (2^8) Multiplication of two bytes"""
@@ -130,17 +133,15 @@ class AES:
             state[3][j] = self.gmul(3, a) ^ b ^ c ^ self.gmul(2, d)
 
         # Apply column offset if shuffled
-        offset = mix_columns_offset if shuffled else 0
+        offset = self.mix_columns_offset if shuffled else 0
         for i, column in enumerate(columns):
             state[(i + offset) % 4] = column
         return state
         
     def add_round_key(self, matrix, key, shuffled=False):
-        """
-        Performs Add Round Key operation on a 4x4 matrix.
-        Applies a column offset if `shuffled` is True.
-        """
-        offset = round_key_offset if shuffled else 0
+        # params: block | all_round_keys | Boolean
+
+        offset = self.round_key_offset if shuffled else 0
 
         for i in range(4):
             for j in range(4):
@@ -192,7 +193,7 @@ class AES:
 
         if shuffled:
             # Apply shuffled column offset (permutation)
-            offset = mix_columns_offset
+            offset = self.mix_columns_offset
             state = self.apply_column_offset(state, offset)  # Modify state according to the shuffled offset
         
         return state
@@ -250,7 +251,9 @@ class AES:
 
         # Step 3: Perform the last round without MixColumns
         state = self.inv_shift_rows(state)
+        print(f"round[ 10].is_row  {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
         state = self.inv_sub_box(state)
+        print(f"round[ 10].is_box  {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
 
         # Step 4: Perform the remaining 9 rounds in reverse order
         for i in range(9, 0, -1):
@@ -259,12 +262,18 @@ class AES:
             print(f"round[{j}].k_sch {hexlify(bytes(self.round_keys[i])).decode('utf-8')}")
 
             state = self.inv_mix_columns(state)
+            print(f"round[{j}].m_col {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
+
             state = self.inv_shift_rows(state)
+            print(f"round[{j}].s_row {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
+
             state = self.inv_sub_box(state)
+            print(f"round[{j}].s_box {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
 
         # Step 5: Add the first round key at the end
+        print(f"round[ 10].ik_sch  {hexlify(bytes(self.round_keys[0])).decode('utf-8')}")
         state = self.add_round_key(state, self.round_keys[0])
-        print(f"round[10].k_sch {hexlify(bytes(self.round_keys[0])).decode('utf-8')}")
+        print(f"round[ 10].ioutput  {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
 
         # Convert the state back to plaintext
         plaintext = bytes(matrix2text(state))
@@ -272,7 +281,7 @@ class AES:
     
         return plaintext
 
-    def saes_encryption_block(self, block):
+    def saes_encryption_block(self, text):
         """
         SAES Block Encryption.
         Recieves a 16 byte block of plain, encrypts it using 176 byte key and returns
@@ -280,17 +289,16 @@ class AES:
         Performs shuffled operations in one of the 9 complete rounds.
         """
 
+        #Convert the text to a 4x4 matrix
+        block = text2matrix(text)
+
         print(f"round[ 0].input  {hexlify(bytes(text2matrix(block))).decode('utf-8')}")
-        print(f"round[ 0].k_sch  {hexlify(bytes(self.round_keys[0])).decode('utf-8')}")  # Round key
+        print(f"round[ 0].k_sch  {hexlify(bytes(self.round_keys[0])).decode('utf-8')}")  
 
         #Step 1: Add the first round key
         state = self.add_round_key(block, self.round_keys[0], True)
 
         print(f"round[ 0].start  {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
-
-        # Flux adjustment because of special rounds (-> sub bytes -> shift rows ->)
-        self.sub_box(state)
-        self.shift_rows(state)
 
         #Step 2: Perform 9 rounds
         for i in range(1, 10):
@@ -332,29 +340,33 @@ class AES:
         
         print(f"round[ 10].output  {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
 
-        return state
+        #Convert the state to a list of bytes
+        ciphertext = bytes(matrix2text(state))
+        return ciphertext
 
     def saes_decryption_block(self, text):
-        
+                
+        # Step 1: Convert the text to a 4x4 matrix
         block = text2matrix(text)
         print(f"round[10].input {hexlify(bytes(matrix2text(block))).decode('utf-8')}")
-        
-        # Step 1: Add the last round key first
+
+        # Step 2: Add the last round key first
         state = self.add_round_key(block, self.round_keys[10])
         print(f"round[10].k_sch {hexlify(bytes(self.round_keys[10])).decode('utf-8')}")
+
+        # Step 3: Perform the last round without MixColumns
+        state = self.inv_shift_rows(state)
+        print(f"round[ 10].is_row  {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
+        state = self.inv_sub_box(state)
+        print(f"round[ 10].is_box  {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
         
-        # Step 2: Perform 9 rounds in reverse order
+
+        # Step 4: Perform 9 rounds in reverse order
         for i in range(9, 0, -1):
             j = 10 - i
             
             # Shuffle round
             if i == self.shuffle_round:
-
-                state = self.inv_shift_rows(state, True)
-                print(f"round[{j}].s_row {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
-
-                state = self.inv_sub_box(state, True)
-                print(f"round[{j}].s_box {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
 
                 state = self.add_round_key(state, self.round_keys[i], True)
                 print(f"round[{j}].k_sch {hexlify(bytes(self.round_keys[i])).decode('utf-8')}")
@@ -362,30 +374,35 @@ class AES:
                 state = self.inv_mix_columns(state, True)
                 print(f"round[{j}].m_col {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
                 
-            # Normal round
-            else:
-                state = self.inv_shift_rows(state)
+                state = self.inv_shift_rows(state, True)
                 print(f"round[{j}].s_row {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
 
-                state = self.inv_sub_box(state)
+                state = self.inv_sub_box(state, True)
                 print(f"round[{j}].s_box {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
                 
+            # Normal round
+            else:
                 state = self.add_round_key(state, self.round_keys[i])
                 print(f"round[{j}].k_sch {hexlify(bytes(self.round_keys[i])).decode('utf-8')}")
 
                 state = self.inv_mix_columns(state)
                 print(f"round[{j}].m_col {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
 
-        #Step 3: Perform the final round
-        state = self.inv_shift_rows(state)
-        print(f"round[ 10].is_row  {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
-        state = self.inv_sub_box(state)
-        print(f"round[ 10].is_box  {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
+                state = self.inv_shift_rows(state)
+                print(f"round[{j}].s_row {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
+
+                state = self.inv_sub_box(state)
+                print(f"round[{j}].s_box {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
+
         print(f"round[ 10].ik_sch  {hexlify(bytes(self.round_keys[0])).decode('utf-8')}")
         state = self.add_round_key(state, self.round_keys[0])
         print(f"round[ 10].ioutput  {hexlify(bytes(matrix2text(state))).decode('utf-8')}")
         
-        return state
+        # Convert the state back to plaintext
+        plaintext = bytes(matrix2text(state))
+        print(f"round[10].output {hexlify(plaintext).decode('utf-8')}")
+    
+        return plaintext
 
     def aes_encrypt(self, plaintext):
 
@@ -410,6 +427,7 @@ class AES:
 
         # Step 2: Decrypt each 16-byte block of the ciphertext
         plaintext_blocks = []
+
         for i in range(0, len(ciphertext), 16):
             block = ciphertext[i:i+16]  # Get a 16-byte block
             plain_block = self.decryption_block(block)  # Implement decryption block
@@ -426,7 +444,47 @@ class AES:
         return plaintext
     
     def saes_encrypt(self, plaintext):
-        return None
 
-    def saes_decrypt(self, ciphertext):
-        return None
+        # Step 1: Pad the plaintext to ensure it's a multiple of 16 bytes
+        padded_plaintext = pad_pkcs7(plaintext)
+        # self.skey = text2matrix(self.key)
+
+        # Initialize ciphertext storage
+        ciphertext_blocks = []
+
+        if self.skey:
+            self.shuffle_key_number = random_shuffle_number(self.skey)
+
+            # Get a random shuffle round and initialize other variables
+            self.shuffle_round = int((self.shuffle_key_number % 9) + 1)
+            ss_box = SUBSTITUTION_BOX.copy()
+            self.s_box_shuffled = shuffle_sbox(ss_box, self.shuffle_key_number)
+            
+            self.round_key_offset = int(self.shuffle_key_number % 16)
+            self.mix_columns_offset = int(self.shuffle_key_number % 4)
+            self.skey = text2matrix(self.skey)
+
+            # Encrypt each 16-byte block of the padded plaintext
+            for i in range(0, len(padded_plaintext), 16):
+                block = padded_plaintext[i:i+16]  # Get a 16-byte block
+                cipher_block = self.saes_encryption_block(block)
+                ciphertext_blocks.append(cipher_block)
+
+        # Combine all ciphertext blocks into the final ciphertext
+        ciphertext = b''.join(ciphertext_blocks)
+        return ciphertext
+
+def saes_decrypt(self, ciphertext):
+    # Initialize plaintext storage
+    plaintext_blocks = []
+
+    # Decrypt each 16-byte block of the ciphertext
+    for i in range(0, len(ciphertext), 16):
+        block = ciphertext[i:i+16]
+        plain_block = self.saes_decryption_block(block)
+        plaintext_blocks.append(plain_block)
+
+    # Combine all decrypted blocks and remove padding
+    padded_plaintext = b''.join(plaintext_blocks)
+    plaintext = unpad_pkcs7(padded_plaintext)
+    return plaintext

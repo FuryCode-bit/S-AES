@@ -1,3 +1,7 @@
+import math
+import string
+import random
+import hashlib
 from constants import *
 from array import array
 
@@ -114,3 +118,24 @@ def create_inv_s_box_shuffled():
         shuffle_matrix.append(-1)
 
     return shuffle_matrix
+
+def random_shuffle_number(key):
+    random_number = 0
+    for n, byte in enumerate(key):
+        converted_byte = int(byte)
+        random_number += math.pow(converted_byte, math.sqrt(n+1))
+    return random_number
+
+def shuffle_sbox(arr, num):
+    # Initialize a random generator with the seed `num`
+    number_generator = random.Random(num)
+    
+    # Perform the Fisher-Yates shuffle
+    for i in range(len(arr) - 1, 0, -1):
+        # Get a random index from 0 to i
+        j = number_generator.randint(0, i)
+        
+        # Swap arr[i] with arr[j]
+        arr[i], arr[j] = arr[j], arr[i]
+    
+    return arr
