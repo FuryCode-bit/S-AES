@@ -19,8 +19,8 @@ The final round
 
 class AES:
 
-    global round_key_offset
-    global mix_columns_offset
+    round_key_offset = 0
+    mix_columns_offset = 0
 
     shuffle_key_number = None
 
