@@ -16,13 +16,21 @@ S-AES will operate as AES, but with two differences:
 
  * https://www.youtube.com/watch?v=O4xNJsjtN6E
 
+ * https://www.youtube.com/watch?v=C4ATDMIz5wc
+
+ * https://www.youtube.com/watch?v=4zx5bM2OcvA
+
 ### Articles
 
  * https://femionewin.medium.com/aes-encryption-with-python-step-by-step-3e3ab0b0fd6c
 
+ * https://ieeexplore.ieee.org/document/8600161
+
 ### Tools
 
  * https://merri.cx/aes-sbox/
+
+ * https://formaestudio.com/rijndaelinspector/archivos/Rijndael_Animation_v4_eng-html5.html
 
 ### Code
  

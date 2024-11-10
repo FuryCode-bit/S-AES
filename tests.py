@@ -6,6 +6,9 @@ from AES import AES, text2matrix, xor_words, matrix2text
 print("\nExample Key Schedules:")
 print('2b7e151628aed2a6abf7158809cf4f3c')  # AES-128 example
 key = bytes.fromhex('2b7e151628aed2a6abf7158809cf4f3c')
+
+# Não está a contar com o padding
+
 expected_round_keys = [
     '2b7e151628aed2a6abf7158809cf4f3c',  # Initial key
     'a0fafe1788542cb123a339392a6c7605',  # Round 1
@@ -23,18 +26,33 @@ expected_round_keys = [
 aes = AES(key)
 round_keys = aes.key_expansion()
 
+# Compare generated round keys with expected values
 for i, (actual, expected) in enumerate(zip(round_keys, expected_round_keys)):
     actual_hex = hexlify(bytes(actual)).decode('utf-8')
-    assert(actual_hex, expected, f"Round {i} key mismatch")
+    assert actual_hex == expected, f"Round {i} key mismatch"
     print(f"Round {i} key: {actual_hex}")
     print(f"Expected     : {expected}")
 
+# Testing AES Encryption
 key = bytes.fromhex('000102030405060708090a0b0c0d0e0f')
-plaintext = bytes.fromhex('00112233445566778899aabbccddeeff')
+plaintext = "00112233445566778899aabbccddeeff"
+plaintext_bytes = bytes.fromhex(plaintext)
+
+print('\n-------------------------------------------------------------------\n')
+
 
 aes = AES(key)
-round_keys = aes.key_expansion()
-print(f'PLAINTEXT : {hexlify(plaintext).decode('utf-8')}')  # Ciphertext
-print(f'KEY : {hexlify(key).decode('utf-8')}')
-cypher_text = aes.encryption_block(plaintext)
+# Encrypt the plaintext
+print(f'\nPLAINTEXT : {plaintext}')
+print(f'KEY       : {hexlify(key).decode("utf-8")}')
 
+ciphertext = aes.aes_encrypt(plaintext_bytes)
+print(f'CIPHERTEXT: {hexlify(ciphertext).decode("utf-8")}')
+
+print('\n-------------------------------------------------------------------\n')
+
+# Decrypt the ciphertext
+decrypted_text = aes.aes_decrypt(ciphertext)
+print(f'DECRYPTED : {hexlify(decrypted_text).decode("utf-8")}')
+
+print('\n-------------------------------------------------------------------\n')
