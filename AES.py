@@ -32,7 +32,7 @@ class AES:
 
         # Initialization of shuffled sbox and respective inverse
         self.s_box_shuffled = []
-        self.inv_s_box_shuffled = create_inv_s_box_shuffled()
+        self.inverse_s_box_shuffled = create_inv_s_box_shuffled()
         
     ## Missing shuffle_key_expansion
     def key_expansion(self):
@@ -155,7 +155,7 @@ class AES:
                 if not shuffled:
                     block[i][j] = SUBSTITUTION_BOX_INV[block[i][j]]
                 else:
-                    block[i][j] = self.inv_s_box_shuffled[block[i][j]]  # Use shuffled S-box
+                    block[i][j] = self.inverse_s_box_shuffled[block[i][j]]  # Use shuffled S-box
         return block
 
     def inv_shift_rows(self, block, shuffled=False):
@@ -459,6 +459,8 @@ class AES:
             self.shuffle_round = int((self.shuffle_key_number % 9) + 1)
             ss_box = SUBSTITUTION_BOX.copy()
             self.s_box_shuffled = shuffle_sbox(ss_box, self.shuffle_key_number)
+            calculate_inverse_matrix(self.inverse_s_box_shuffled, self.s_box_shuffled)
+
             
             self.round_key_offset = int(self.shuffle_key_number % 16)
             self.mix_columns_offset = int(self.shuffle_key_number % 4)
