@@ -34,7 +34,6 @@ class AES:
         self.s_box_shuffled = []
         self.inverse_s_box_shuffled = create_inv_s_box_shuffled()
         
-    ## Missing shuffle_key_expansion
     def key_expansion(self):
         
         nk = 4  #The key is 128 bits, so 4 words of 32 bits each
@@ -75,30 +74,16 @@ class AES:
         
         return round_keys
     
-    def sub_box(self, block, shuffled=False):
-        """Sub Bytes using inverse S-box."""
+    def sub_box(self,block):
         for i in range(4):
             for j in range(4):
-                if not shuffled:
-                    block[i][j] = SUBSTITUTION_BOX_INV[block[i][j]]
-                else:
-                    block[i][j] = self.s_box_shuffled[block[i][j]]
-        return block
+                block[i][j] = SUBSTITUTION_BOX[block[i][j]]
+        return block    
     
-    def shift_rows(self, matrix, shuffled=False):
-        if not shuffled:
-            for i in range(4):
-                matrix[i] = matrix[i][i:] + matrix[i][:i]
-        else:
-            # Shuffled Shift Rows
-            index = int(self.shuffle_key_number % len(PERMUTATIONS))
-            perm = PERMUTATIONS[index]
-            for i in range(4):
-                temp = [matrix[(perm[i] + j) % 4][i] for j in range(4)]
-                for j in range(4):
-                    matrix[j][i] = temp[j]
-
-        return matrix
+    def shift_rows(self, block):
+        for i in range(4):
+            block[i] = block[i][i:] + block[i][:i]
+        return block
     
     def gmul(self, a, b):
         """Galois Field (2^8) Multiplication of two bytes"""
@@ -112,13 +97,12 @@ class AES:
                 a ^= 0x1b  # x^8 + x^4 + x^3 + x + 1
             b >>= 1
         return p & 0xff
-
-    def mix_columns(self, state, shuffled=False):
+    def mix_columns(self,state):
         """
-        Performs Mix Columns operation on a 4x4 matrix.
-        Uses shuffled column permutation if `shuffled` is True.
+        Mix columns transformation for a 4x4 state matrix stored in row-major order
+        state[i][j] represents row i, column j
         """
-        columns = []
+        # Process each column
         for j in range(4):
             # Extract column
             column = [state[i][j] for i in range(4)]
@@ -131,22 +115,16 @@ class AES:
             state[1][j] = a ^ self.gmul(2, b) ^ self.gmul(3, c) ^ d
             state[2][j] = a ^ b ^ self.gmul(2, c) ^ self.gmul(3, d)
             state[3][j] = self.gmul(3, a) ^ b ^ c ^ self.gmul(2, d)
-
-        # Apply column offset if shuffled
-        offset = self.mix_columns_offset if shuffled else 0
-        for i, column in enumerate(columns):
-            state[(i + offset) % 4] = column
+        
         return state
         
-    def add_round_key(self, matrix, key, shuffled=False):
-        # params: block | all_round_keys | Boolean
-
-        offset = self.round_key_offset if shuffled else 0
-
+    def add_round_key(self, block, round_key):
+        #Block is a 4x4 matrix
+        #Round key is a 4-word list
         for i in range(4):
             for j in range(4):
-                matrix[i][j] ^= key[i][(j + offset) % 4]
-        return matrix
+                block[j][i] ^= round_key[i*4 + j]
+        return block
 
     def inv_sub_box(self, block, shuffled=False):
         """Inverse Sub Bytes using inverse S-box."""
@@ -204,6 +182,9 @@ class AES:
         block = text2matrix(text)
         print(f"round[ 0].input  {hexlify(bytes(matrix2text(block))).decode('utf-8')}")
         print(f"round[ 0].k_sch  {hexlify(bytes(self.round_keys[0])).decode('utf-8')}")  # Round key
+
+        # print("block: ", block)
+        # print("self.round_keys[0]: ", self.round_keys[0])
 
         #Step 1: Add the first round key
         state = self.add_round_key(block, self.round_keys[0])
@@ -405,7 +386,7 @@ class AES:
         return plaintext
 
     def aes_encrypt(self, plaintext):
-
+        j = 0
         # Step 1: Pad the plaintext to ensure it's a multiple of 16 bytes
         padded_plaintext = pad_pkcs7(plaintext)
         # padded_plaintext = plaintext
@@ -413,10 +394,11 @@ class AES:
         # Step 2: Encrypt each 16-byte block of the padded plaintext
         ciphertext_blocks = []
         for i in range(0, len(padded_plaintext), 16):
+            print(f"\nENC BLOCO {j}\n")
             block = padded_plaintext[i:i+16]  # Get a 16-byte block
             cipher_block = self.encryption_block(block)
             ciphertext_blocks.append(cipher_block)
-        
+            j+=1
         # Combine all ciphertext blocks into the final ciphertext
         ciphertext = b''.join(ciphertext_blocks)
         return ciphertext
@@ -427,17 +409,18 @@ class AES:
 
         # Step 2: Decrypt each 16-byte block of the ciphertext
         plaintext_blocks = []
-
+        j = 0
         for i in range(0, len(ciphertext), 16):
+            print(f"\nDEC BLOCO {j}\n")
             block = ciphertext[i:i+16]  # Get a 16-byte block
             plain_block = self.decryption_block(block)  # Implement decryption block
-
+            j+=1
             # Check if this is the last block, and if so, remove padding
             if i + 16 == len(ciphertext):
                 plain_block = unpad_pkcs7(plain_block)
 
             plaintext_blocks.append(plain_block)
-        
+
         # Combine all plaintext blocks into the final plaintext
         plaintext = b''.join(plaintext_blocks)
 
