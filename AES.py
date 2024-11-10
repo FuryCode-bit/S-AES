@@ -74,16 +74,30 @@ class AES:
         
         return round_keys
     
-    def sub_box(self,block):
+    def sub_box(self, block, shuffled=False):
+        """Sub Bytes using inverse S-box."""
         for i in range(4):
             for j in range(4):
-                block[i][j] = SUBSTITUTION_BOX[block[i][j]]
-        return block    
-    
-    def shift_rows(self, block):
-        for i in range(4):
-            block[i] = block[i][i:] + block[i][:i]
+                if not shuffled:
+                    block[i][j] = SUBSTITUTION_BOX[block[i][j]]
+                else:
+                    block[i][j] = self.s_box_shuffled[block[i][j]]
         return block
+    
+    def shift_rows(self, matrix, shuffled=False):
+        if not shuffled:
+            for i in range(4):
+                matrix[i] = matrix[i][i:] + matrix[i][:i]
+        else:
+            # Shuffled Shift Rows
+            index = int(self.shuffle_key_number % len(PERMUTATIONS))
+            perm = PERMUTATIONS[index]
+            for i in range(4):
+                temp = [matrix[(perm[i] + j) % 4][i] for j in range(4)]
+                for j in range(4):
+                    matrix[j][i] = temp[j]
+
+        return matrix
     
     def gmul(self, a, b):
         """Galois Field (2^8) Multiplication of two bytes"""
@@ -97,12 +111,13 @@ class AES:
                 a ^= 0x1b  # x^8 + x^4 + x^3 + x + 1
             b >>= 1
         return p & 0xff
-    def mix_columns(self,state):
+
+    def mix_columns(self, state, shuffled=False):
         """
-        Mix columns transformation for a 4x4 state matrix stored in row-major order
-        state[i][j] represents row i, column j
+        Performs Mix Columns operation on a 4x4 matrix.
+        Uses shuffled column permutation if `shuffled` is True.
         """
-        # Process each column
+        columns = []
         for j in range(4):
             # Extract column
             column = [state[i][j] for i in range(4)]
@@ -115,16 +130,25 @@ class AES:
             state[1][j] = a ^ self.gmul(2, b) ^ self.gmul(3, c) ^ d
             state[2][j] = a ^ b ^ self.gmul(2, c) ^ self.gmul(3, d)
             state[3][j] = self.gmul(3, a) ^ b ^ c ^ self.gmul(2, d)
-        
+
+        # Apply column offset if shuffled
+        offset = self.mix_columns_offset if shuffled else 0
+        for i, column in enumerate(columns):
+            state[(i + offset) % 4] = column
         return state
         
-    def add_round_key(self, block, round_key):
-        #Block is a 4x4 matrix
-        #Round key is a 4-word list
+    def add_round_key(self, matrix, key, shuffled=False):
+    # params: block | all_round_keys | Boolean
+        # offset = self.round_key_offset if shuffled else 0
+        if shuffled:
+            offset = self.round_key_offset
+        else:
+            offset = 0
+
         for i in range(4):
             for j in range(4):
-                block[j][i] ^= round_key[i*4 + j]
-        return block
+                matrix[j][i] ^= key[i*4 + (j + offset)]
+        return matrix
 
     def inv_sub_box(self, block, shuffled=False):
         """Inverse Sub Bytes using inverse S-box."""
