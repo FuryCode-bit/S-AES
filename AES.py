@@ -297,7 +297,7 @@ class AES:
         #Convert the text to a 4x4 matrix
         block = text2matrix(text)
 
-        print(f"round[ 0].input  {hexlify(bytes(text2matrix(block))).decode('utf-8')}")
+        print(f"round[ 0].input  {hexlify(bytes(matrix2text(block))).decode('utf-8')}")
         print(f"round[ 0].k_sch  {hexlify(bytes(self.round_keys[0])).decode('utf-8')}")  
 
         #Step 1: Add the first round key

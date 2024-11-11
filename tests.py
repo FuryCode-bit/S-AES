@@ -52,7 +52,25 @@ print(f'CIPHERTEXT: {hexlify(ciphertext).decode("utf-8")}')
 print('\n-------------------------------------------------------------------\n')
 
 # Decrypt the ciphertext
-decrypted_text = aes.aes_decrypt(ciphertext)
+decrypted_text = aes.saes_decrypt(ciphertext)
+print(f'\nDECRYPTED : {hexlify(decrypted_text).decode("utf-8")}')
+
+print('\n-------------------------------------------------------------------\n')
+
+skey = bytes.fromhex("10000000000000000000000000000000")
+saes = AES(key, skey)
+# Encrypt the plaintext
+print(f'\nPLAINTEXT : {plaintext}')
+print(f'KEY       : {hexlify(key).decode("utf-8")}')
+print(f'SKEY      : {hexlify(skey).decode("utf-8")}')
+
+ciphertext = saes.saes_encrypt(plaintext_bytes)
+print(f'CIPHERTEXT: {hexlify(ciphertext).decode("utf-8")}')
+
+print('\n-------------------------------------------------------------------\n')
+
+# Decrypt the ciphertext
+decrypted_text = saes.saes_decrypt(ciphertext)
 print(f'\nDECRYPTED : {hexlify(decrypted_text).decode("utf-8")}')
 
 print('\n-------------------------------------------------------------------\n')
