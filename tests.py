@@ -33,7 +33,7 @@ for i, (actual, expected) in enumerate(zip(round_keys, expected_round_keys)):
 
 # Testing AES Encryption
 key = bytes.fromhex('000102030405060708090a0b0c0d0e0f')
-plaintext = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+plaintext = "00112233445566778899aabbccddeeff"
 # plaintext = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 
 plaintext_bytes = bytes.fromhex(plaintext)

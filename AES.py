@@ -483,18 +483,18 @@ class AES:
         ciphertext = b''.join(ciphertext_blocks)
         return ciphertext
 
-def saes_decrypt(self, ciphertext):
-    # Initialize plaintext storage
-    plaintext_blocks = []
+    def saes_decrypt(self, ciphertext):
+        # Initialize plaintext storage
+        plaintext_blocks = []
 
-    # Decrypt each 16-byte block of the ciphertext
-    for i in range(0, len(ciphertext), 16):
-        block = ciphertext[i:i+16]
-        plain_block = self.saes_decryption_block(block)
-        plaintext_blocks.append(plain_block)
+        # Decrypt each 16-byte block of the ciphertext
+        for i in range(0, len(ciphertext), 16):
+            block = ciphertext[i:i+16]
+            plain_block = self.saes_decryption_block(block)
+            plaintext_blocks.append(plain_block)
 
-    # Combine all decrypted blocks and remove padding
-    padded_plaintext = b''.join(plaintext_blocks)
-    plaintext = unpad_pkcs7(padded_plaintext)
+        # Combine all decrypted blocks and remove padding
+        padded_plaintext = b''.join(plaintext_blocks)
+        plaintext = unpad_pkcs7(padded_plaintext)
 
-    return plaintext
+        return plaintext
