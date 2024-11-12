@@ -1,6 +1,7 @@
 #include "saes.h"
 #include <string.h>
 #include <stdio.h>
+#include <smmintrin.h> 
 
 // Helper functions for key manipulation
 static inline __m128i key_expand_step(__m128i key, __m128i keygen) {
@@ -71,13 +72,13 @@ static void create_modified_sbox(const uint64_t sk_half,
     // Seed the random number generator using sk_half
     srand(sk_half);
 
-    // Shuffle the array using the Fisher-Yates algorithm
-    for (int i = 256 - 1; i > 0; i--) {
-        int j = rand() % (i + 1);
-        int temp = modified_sbox[i];
-        modified_sbox[i] = modified_sbox[j];
-        modified_sbox[j] = temp;
-    }
+    //Shuffle the array using the Fisher-Yates algorithm
+    // for (int i = 256 - 1; i > 0; i--) {
+    //     int j = rand() % (i + 1);
+    //     uint8_t temp = modified_sbox[i];
+    //     modified_sbox[i] = modified_sbox[j];
+    //     modified_sbox[j] = temp;
+    // }
 
     int changes = 0;
     for (int i = 0; i < 256; i++) {
@@ -88,23 +89,61 @@ static void create_modified_sbox(const uint64_t sk_half,
     //DEBUG
     printf("Modified S-box changes: %d\n", changes);
     
-    if (changes < 128){
-        // Shuffle the array using the Fisher-Yates algorithm
-        for (int i = 256 - 1; i > 0 && changes > 128; i--) {
-            int j = rand() % (i + 1);
-            int temp = modified_sbox[i];
-            modified_sbox[i] = modified_sbox[j];
-            modified_sbox[j] = temp;
-            if (modified_sbox[i] != aes_sbox[i]) {
-                changes++;
-            }
-        }    
-    }   
+    // if (changes < 128){
+    //     // Shuffle the array using the Fisher-Yates algorithm
+    //     for (int i = 256 - 1; i > 0 && changes > 128; i--) {
+    //         int j = rand() % (i + 1);
+    //         int temp = modified_sbox[i];
+    //         modified_sbox[i] = modified_sbox[j];
+    //         modified_sbox[j] = temp;
+    //         if (modified_sbox[i] != aes_sbox[i]) {
+    //             changes++;
+    //         }
+    //     }    
+    // }   
     
     for (int i = 0; i < 256; i++) {
         inv_modified_sbox[modified_sbox[i]] = i;
     }
 
+}
+
+static uint8_t gmul(uint8_t a, uint8_t b) {
+    uint8_t p = 0;
+    uint8_t hi_bit_set;
+    
+    for (int i = 0; i < 8; i++) {
+        if (b & 1) {
+            p ^= a;
+        }
+        hi_bit_set = a & 0x80;
+        a <<= 1;   
+        if (hi_bit_set) {
+            a ^= 0x1b;    /* x^8 + x^4 + x^3 + x + 1 */
+        }
+        b >>= 1;
+    }
+    return p & 0xff;
+}
+
+static void mix_columns(__m128i* state) {
+    uint8_t s[16];
+    _mm_storeu_si128((__m128i*)s, *state);
+    
+    for(int i = 0; i < 4; i++) {
+        uint8_t s0 = s[i*4];
+        uint8_t s1 = s[i*4 + 1];
+        uint8_t s2 = s[i*4 + 2];
+        uint8_t s3 = s[i*4 + 3];
+        
+        // Each byte in the column is transformed by:
+        s[i*4]     = gmul(2,s0) ^ gmul(3,s1) ^ s2      ^ s3;      // 2,3,1,1
+        s[i*4 + 1] = s0      ^ gmul(2,s1) ^ gmul(3,s2) ^ s3;      // 1,2,3,1
+        s[i*4 + 2] = s0      ^ s1      ^ gmul(2,s2) ^ gmul(3,s3); // 1,1,2,3
+        s[i*4 + 3] = gmul(3,s0) ^ s1      ^ s2      ^ gmul(2,s3); // 3,1,1,2
+    }
+    
+    *state = _mm_loadu_si128((__m128i*)s);
 }
 
 int saes_init(SAES_KEY* keys, const uint8_t* aes_key, const uint8_t* shuffle_key) {
@@ -145,35 +184,28 @@ int saes_init(SAES_KEY* keys, const uint8_t* aes_key, const uint8_t* shuffle_key
                 keys->inv_shuffled_keys[i] = keys->shuffled_keys[i];
             }
         }
-        //DEBUGGING
-        for (int i = 0; i < 11; i++) {
-            printf("Shuffled key %d: ", i);
-            for (int j = 0; j < 16; j++) {
-                printf("%02x ", ((uint8_t*)&keys->shuffled_keys[i])[j]);
-            }
-            printf("\n");
-        }
   
         // Select modified round (1-9) using some bits from SK
         keys->modified_round = 1 + (sk_first_half % 9);
-        
+
         printf("Modified round: %d\n", keys->modified_round);
 
         // Create modified S-box using second half of SK
         create_modified_sbox(sk_second_half, 
                            keys->modified_sbox, 
                            keys->inv_modified_sbox);
-        printf("Modified S-box: ");
-        for (int i = 0; i < 256; i++) {
-            printf("%02x ", keys->modified_sbox[i]);
-        }
-        printf("\n");
 
-        printf("Modified Inv S-box: ");
-        for (int i = 0; i < 256; i++) {
-            printf("%02x ", keys->inv_modified_sbox[i]);
-        }
-        printf("\n");
+        // printf("Modified S-box: ");
+        // for (int i = 0; i < 256; i++) {
+        //     printf("%02d ", keys->modified_sbox[i]);
+        // }
+        // printf("\n");
+
+        // printf("Modified Inv S-box: ");
+        // for (int i = 0; i < 256; i++) {
+        //     printf("%02d ", keys->inv_modified_sbox[i]);
+        // }
+        // printf("\n");
         
 
         // Create modified round key with SK XOR
@@ -186,53 +218,217 @@ int saes_init(SAES_KEY* keys, const uint8_t* aes_key, const uint8_t* shuffle_key
         memcpy(keys->inv_shuffled_keys, keys->round_keys, sizeof(keys->round_keys));
         keys->modified_round = -1;  // No modified round
     }
-    
+    //DEBUGGING
+    // for (int i = 0; i < 11; i++) {
+    //     printf("Shuffled key %d:  ", i);
+    //     for (int j = 0; j < 16; j++) {
+    //         printf("%02x ", ((uint8_t*)&keys->shuffled_keys[i])[j]);
+    //     }
+    //     printf("\n");
+    // }
+    // for(int i = 0; i < 11; i++) {
+    //     printf("Inv Shuffled key %d: ", i);
+    //     for (int j = 0; j < 16; j++) {
+    //         printf("%02x ", ((uint8_t*)&keys->inv_shuffled_keys[i])[j]);
+    //     }
+    //     printf("\n");
+    // }
     return 0;
 }
 
 void saes_encrypt_block(const SAES_KEY* keys, const uint8_t* in, uint8_t* out) {
     __m128i m = _mm_loadu_si128((__m128i*)in);
+    printf("Plaintext: ");
+    for (int i = 0; i < 16; i++) {
+        printf("%02x ", ((uint8_t*)&m)[i]);
+    }
+    printf("\n");
     
     // Initial round
     m = _mm_xor_si128(m, keys->shuffled_keys[0]);
-    
+    printf("Round 0:  ");
+    for (int i = 0; i < 16; i++) {
+        printf("%02x ", ((uint8_t*)&m)[i]);
+    }
+    printf("\n");
     // Main rounds
     for(int i = 1; i < 10; i++) {
         if(i == keys->modified_round) {
-            // TODO: Implement modified round with custom S-box
-            // For now, just do regular round
-            // AddRoundKey ( MixColumns ( ShiftRows ( SubBytes ( x ) ) ) , RK )
-            m = _mm_aesenc_si128(m, keys->modified_key);
+
+            // 1. SubBytes using the Suffled S-box
+            for(int j = 0; j < 16; j++) {
+                ((uint8_t*)&m)[j] = keys->modified_sbox[((uint8_t*)&m)[j]];
+            }
+
+            // 2. ShiftRows (using Intel's instruction)
+            m = _mm_shuffle_epi8(m, _mm_setr_epi8(0,5,10,15,4,9,14,3,8,13,2,7,12,1,6,11));
+
+
+            // 3. MixColumns
+            mix_columns(&m);
+
+            // 4. AddRoundKey
+            m = _mm_xor_si128(m, keys->modified_key);
+
+            
         } else {
             m = _mm_aesenc_si128(m, keys->shuffled_keys[i]);
         }
+        //DEBUGGING
+        printf("Round %d:  ", i);
+        for (int j = 0; j < 16; j++) {
+            printf("%02x ", ((uint8_t*)&m)[j]);
+        }
+        printf("\n");
+
     }
     
     // Final round
     m = _mm_aesenclast_si128(m, keys->shuffled_keys[10]);
     
+    //DEBUGGING
+    printf("Round 10: ");
+    for (int i = 0; i < 16; i++) {
+        printf("%02x ", ((uint8_t*)&m)[i]);
+    }
+    printf("\n");
+
     _mm_storeu_si128((__m128i*)out, m);
 }
 
 void saes_decrypt_block(const SAES_KEY* keys, const uint8_t* in, uint8_t* out) {
     __m128i m = _mm_loadu_si128((__m128i*)in);
-    
+    printf("Ciphertext: ");
+    for (int i = 0; i < 16; i++) {
+        printf("%02x ", ((uint8_t*)&m)[i]);
+    }
+    printf("\n");
     // Initial round
     m = _mm_xor_si128(m, keys->inv_shuffled_keys[10]);
-    
+    //DEBUGGING
+    printf("Round 10: ");
+    for (int i = 0; i < 16; i++) {
+        printf("%02x ", ((uint8_t*)&m)[i]);
+    }
+    printf("\n");
+
     // Main rounds
     for(int i = 9; i > 0; i--) {
         if(i == keys->modified_round) {
-            // TODO: Implement modified round with custom S-box
-            // For now, just do regular round
-            m = _mm_aesdec_si128(m, _mm_aesimc_si128(keys->modified_key));
+            
+            // 1. InvShiftRows (using Intel's instruction)
+            m = _mm_shuffle_epi8(m, _mm_setr_epi8(0,13,10,7,4,1,14,11,8,5,2,15,12,9,6,3));
+
+            // 2. InvSubBytes using the Inverse Modified S-box
+            for(int j = 0; j < 16; j++) {
+                ((uint8_t*)&m)[j] = keys->inv_modified_sbox[((uint8_t*)&m)[j]];
+            }
+
+            // 3. AddRoundKey
+            m = _mm_xor_si128(m, keys->modified_key);
+
+            // 4. InvMixColumns
+            m = _mm_aesimc_si128(m);
+ 
+    
         } else {
             m = _mm_aesdec_si128(m, keys->inv_shuffled_keys[i]);
         }
+        //DEBUGGING
+        printf("Round %d:  ", i);
+        for (int j = 0; j < 16; j++) {
+            printf("%02x ", ((uint8_t*)&m)[j]);
+        }
+        printf("\n");
     }
     
     // Final round
     m = _mm_aesdeclast_si128(m, keys->inv_shuffled_keys[0]);
-    
+    //DEBUGGING
+    printf("Round 0:  ");
+    for (int i = 0; i < 16; i++) {
+        printf("%02x ", ((uint8_t*)&m)[i]);
+    }
+    printf("\n");    
     _mm_storeu_si128((__m128i*)out, m);
+}
+
+static uint8_t* pad_pkcs7(const uint8_t* input, size_t input_length, size_t* padded_length) {
+    size_t padding_length = 16 - (input_length % 16);;
+    *padded_length = input_length + padding_length;
+    
+    uint8_t* padded_data = (uint8_t*)malloc(*padded_length);
+    if (!padded_data) return NULL;
+    
+    // Copy original data
+    memcpy(padded_data, input, input_length);
+    
+    // Add padding bytes
+    for (size_t i = input_length; i < *padded_length; i++) {
+        padded_data[i] = (uint8_t)padding_length;
+    }
+    
+    return padded_data;
+}
+
+static uint8_t* unpad_pkcs7(const uint8_t* input, size_t input_length, size_t* unpadded_length) {
+    
+    uint8_t padding_length = input[input_length - 1];  
+
+    *unpadded_length = input_length - padding_length;
+    uint8_t* unpadded_data = (uint8_t*)malloc(*unpadded_length);
+    if (!unpadded_data) return NULL;
+    
+    memcpy(unpadded_data, input, *unpadded_length);
+    return unpadded_data;
+}
+
+uint8_t* saes_encrypt(const SAES_KEY* keys, const uint8_t* plaintext, size_t plaintext_length, size_t* ciphertext_length) {
+    
+    // Step 1: Pad the plaintext
+    size_t padded_length;
+    uint8_t* padded_data = pad_pkcs7(plaintext, plaintext_length, &padded_length);
+    if (!padded_data) return NULL;
+    
+    // Step 2: Allocate space for ciphertext
+    *ciphertext_length = padded_length;
+    uint8_t* ciphertext = (uint8_t*)malloc(*ciphertext_length);
+    if (!ciphertext) {
+        free(padded_data);
+        return NULL;
+    }
+    
+    // Step 3: Encrypt each block
+    printf("Encrypting %zu blocks\n", padded_length / 16);
+    for (size_t i = 0; i < padded_length; i += 16) {
+        printf("\nEncrypting block %zu\n", i / 16);
+        saes_encrypt_block(keys, padded_data + i, ciphertext + i);
+    }
+    
+    free(padded_data);
+    return ciphertext;
+}
+
+uint8_t* saes_decrypt(const SAES_KEY* keys, const uint8_t* ciphertext, size_t ciphertext_length, size_t* plaintext_length) {
+    
+     // Step 1: Allocate space for decrypted data
+    uint8_t* decrypted_data = (uint8_t*)malloc(ciphertext_length);
+    if (!decrypted_data) {
+        return NULL;
+    }
+    
+    // Step 2: Decrypt each block
+    printf("Decrypting %zu blocks\n", ciphertext_length / 16);
+    for (size_t i = 0; i < ciphertext_length; i += 16) {
+        printf("\nDecrypting block %zu\n", i / 16);
+        saes_decrypt_block(keys, ciphertext + i, decrypted_data + i);
+    }
+    
+    // Step 3: Remove padding from the last block
+    uint8_t* unpadded_data = unpad_pkcs7(decrypted_data, ciphertext_length, plaintext_length);
+    
+    // Free the intermediate buffer
+    free(decrypted_data);
+    
+    return unpadded_data;
 }
