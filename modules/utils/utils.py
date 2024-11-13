@@ -1,8 +1,6 @@
 import math
-import string
 import random
-import hashlib
-from constants import *
+from modules.utils.constants import *
 from array import array
 
 def rot_word(word):
@@ -15,7 +13,7 @@ def xor_words(word1, word2):
 
 def sub_word(word):
     return [SUBSTITUTION_BOX[b] for b in word]
-
+    
 def text2matrix(text):
     # Convert the bytes to a 4x4 matrix
     matrix = [[0 for _ in range(4)] for _ in range(4)]
@@ -45,31 +43,6 @@ def transform_key(key):
         row = bytes([key[i], key[i + 1], key[i + 2], key[i + 3]])
         matrix.append(row)
     return matrix
-
-def sub_bytes(column):
-
-    transformed_column = []
-
-    for byte in column:
-        # Apply SubBytes transformation to each byte in the column
-        transformed_byte = sub_bytes_4(byte)
-        # Append the transformed byte to the new column
-        transformed_column.append(transformed_byte)
-        
-    return transformed_column
-
-def sub_bytes_4(column):
-
-    transformed_column = []
-
-    for i in range(4):
-        # Apply the S-Box substitution
-        substituted_byte = SUBSTITUTION_BOX[column[i]]
-        
-        # Append the transformed byte to the new list
-        transformed_column.append(substituted_byte)
-        
-    return transformed_column
 
 def sub_bytes_matrix(matrix):
     for i in range(4):
@@ -136,3 +109,7 @@ def shuffle_sbox(arr, num):
         arr[i], arr[j] = arr[j], arr[i]
     
     return arr
+
+def debug_print(message, debug):
+    if debug:
+        print(message)
