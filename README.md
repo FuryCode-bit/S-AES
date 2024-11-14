@@ -31,6 +31,29 @@ echo ciphertext | python main.py dec some_key [some_skey] (--time | -t) (--debug
 echo some_plaintext | python main.py speed some_key [some_skey] (--time | -t) (--debug | -d)
 ```
 
+### Encrypt some plaintext with AES-NI:
+
+```shell
+cd ciphers/AES-NI
+make
+echo some_plaintext | ./encrypt <aes\_key> <shuffle\_key>
+```
+### Decrypt some ciphertext with AES-NI:
+
+```shell
+cd ciphers/AES-NI
+make
+echo ciphertext | ./decrypt <aes\_key> <shuffle\_key>
+```
+
+### Evaluate the performance in nanoseconds of both encryption and decription using AES-NI:
+```shell
+cd ciphers/AES-NI
+make
+./speed
+```
+
+
 ## References
 
  * [1] - https://github.com/pelisalacarta-ce/pelisalacarta-ce/blob/master/python/main-classic/lib/jscrypto.py
