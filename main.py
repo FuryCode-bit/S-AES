@@ -9,8 +9,8 @@ import sys
 def main():
     parser = argparse.ArgumentParser(description='AES Encryption/Decryption Tool')
     parser.add_argument('mode', choices=['enc', 'dec', 'speed'], help='Mode: enc (encrypt), dec (decrypt), speed (execute all)')
-    parser.add_argument('-k', '--key', type=str, required=True, help='Encryption/Decryption key (in hex format)')
-    parser.add_argument('-sk', '--skey', type=str, nargs='?', help='Shuffle key (only required for saes mode, in hex format)')
+    parser.add_argument('key', type=str, help='Encryption/Decryption key (in hex format)')
+    parser.add_argument('skey', type=str, nargs='?', default=None, help='Shuffle key (only required for saes mode, in hex format)')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable Debug Mode')
     parser.add_argument('-t', '--time', action='store_true', help='Measure encryption/decryption time')
 
@@ -32,7 +32,7 @@ def main():
 
     elif args.mode == 'enc':
         debug_print(f"Encryption Mode Selected - Method: {aes_method}", args.debug)
-        plaintext_bytes = bytes.fromhex(block)
+        plaintext_bytes = block.encode('utf-8')
         key_bytes = bytes.fromhex(args.key)
         skey_bytes = bytes.fromhex(args.skey) if args.skey else None
         
@@ -46,16 +46,17 @@ def main():
 
         if not args.debug:
             # Stdout
-            for bit in ciphertext:
-                print(chr(bit),end="")
+            for hexa in ciphertext:
+                print(hexa,end="")
 
         debug_print(f"Encrypted Text (hex): {hexlify(ciphertext).decode('utf-8')}", args.debug)
         if args.time:
             debug_print(f"Encryption Time (ns): {enc_time}", args.debug)
 
     elif args.mode == 'dec':
+    
         debug_print(f"Decryption Mode Selected - Method: {aes_method}", args.debug)
-        ciphertext_bytes = bytes.fromhex(block)
+        ciphertext_bytes = block.encode('utf-8')
         key_bytes = bytes.fromhex(args.key)
         skey_bytes = bytes.fromhex(args.skey) if args.skey else None
 
@@ -73,7 +74,8 @@ def main():
 
         if not args.debug:
             # Stdout
-            for bit in decrypted_text:
-                print(chr(bit),end="")
+            for hexa in decrypted_text:
+                print(hexa,end="")
+                
 if __name__ == "__main__":
     main()

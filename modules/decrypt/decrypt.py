@@ -59,6 +59,10 @@ class Decrypt():
         return plaintext, elapsed_time
 
     def saes_decrypt(self, ciphertext):
+
+         # Step 1: Ensure ciphertext length is a multiple of 16
+        ciphertext = ciphertext[:len(ciphertext) - len(ciphertext) % 16]
+
         # Initialize plaintext storage
         plaintext_blocks = []
 

@@ -87,12 +87,12 @@ class Speed:
         
         # Encrypt
         ciphertext, aes_enc_time = self.aes_enc.aes_encrypt()
-        print(f'\nCIPHERTEXT: {hexlify(ciphertext).decode("utf-8")}')
+        print(f'\nCustom AES CIPHERTEXT: {hexlify(ciphertext).decode("utf-8")}')
         # print(f'Custom AES Encryption Time in ns: {aes_enc_time}')
 
         # Decrypt
         decrypted_text, aes_dec_time = self.aes_dec.aes_decrypt(ciphertext)
-        print(f'\nDECRYPTED : {hexlify(decrypted_text).decode("utf-8")}')
+        print(f'\nDECRYPTED Custom AES: {hexlify(decrypted_text).decode("utf-8")}')
         print(f'Custom AES Decryption Time in ns: {aes_dec_time}')
 
     def Shuffled_AES_speed(self):
@@ -113,6 +113,5 @@ class Speed:
 
         # Decrypt
         decrypted_text, saes_dec_time = self.saes_dec.saes_decrypt(ciphertext)
-        print(decrypted_text)
-        print(f'\nDECRYPTED: {hexlify(decrypted_text).decode("utf-8")}')
+        print(f'\nDECRYPTED Shuffled AES: {hexlify(decrypted_text).decode("utf-8")}')
         print(f'Shuffled AES Decryption Time in ns: {saes_dec_time}')

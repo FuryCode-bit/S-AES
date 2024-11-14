@@ -5,8 +5,17 @@ A modified version of the well-known symmetric encryption algorithm, AES.
 
 How to execute:
 
-echo some_plain | python main.py enc/dec/speed [-k key] [-sk skey] [--time] [--debug]
+```shell
+echo some_plaintext | python main.py enc some_key some_skey] [--time] [--debug]
+```
 
+```shell
+echo ciphertext | python main.py dec some_key [skey] [--time] [--debug]
+```
+
+```shell
+echo some_plaintext | python main.py speed some_key
+```
 ## Documentation:
 
  * https://www.youtube.com/watch?v=O4xNJsjtN6E
