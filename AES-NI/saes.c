@@ -35,11 +35,11 @@ static void create_key_permutation(const uint64_t sk_half, int* perm, int size) 
     }
 
     // Debugging
-    printf("Permutation: ");
-    for (int i = 0; i < size; i++) {
-        printf("%d ", perm[i]);
-    }
-    printf("\n");
+    // printf("Permutation: ");
+    // for (int i = 0; i < size; i++) {
+    //     printf("%d ", perm[i]);
+    // }
+    // printf("\n");
 }
    
 
@@ -87,7 +87,7 @@ static void create_modified_sbox(const uint64_t sk_half,
         }
     }
     //DEBUG
-    printf("Modified S-box changes: %d\n", changes);
+    // printf("Modified S-box changes: %d\n", changes);
     
     // if (changes < 128){
     //     // Shuffle the array using the Fisher-Yates algorithm
@@ -167,8 +167,8 @@ int saes_init(SAES_KEY* keys, const uint8_t* aes_key, const uint8_t* shuffle_key
         memcpy(&sk_first_half, shuffle_key, 8);
         memcpy(&sk_second_half, shuffle_key + 8, 8);
         //Debugging
-        printf("sk_first_half: %lu\n", sk_first_half);
-        printf("sk_second_half: %lu\n", sk_second_half);
+        // printf("sk_first_half: %lu\n", sk_first_half);
+        // printf("sk_second_half: %lu\n", sk_second_half);
 
         // Create key permutation using first half of SK
         int perm[11];
@@ -188,7 +188,7 @@ int saes_init(SAES_KEY* keys, const uint8_t* aes_key, const uint8_t* shuffle_key
         // Select modified round (1-9) using some bits from SK
         keys->modified_round = 1 + (sk_first_half % 9);
 
-        printf("Modified round: %d\n", keys->modified_round);
+        // printf("Modified round: %d\n", keys->modified_round);
 
         // Create modified S-box using second half of SK
         create_modified_sbox(sk_second_half, 
@@ -238,19 +238,19 @@ int saes_init(SAES_KEY* keys, const uint8_t* aes_key, const uint8_t* shuffle_key
 
 void saes_encrypt_block(const SAES_KEY* keys, const uint8_t* in, uint8_t* out) {
     __m128i m = _mm_loadu_si128((__m128i*)in);
-    printf("Plaintext: ");
-    for (int i = 0; i < 16; i++) {
-        printf("%02x ", ((uint8_t*)&m)[i]);
-    }
-    printf("\n");
+    // printf("Plaintext: ");
+    // for (int i = 0; i < 16; i++) {
+    //     printf("%02x ", ((uint8_t*)&m)[i]);
+    // }
+    // printf("\n");
     
     // Initial round
     m = _mm_xor_si128(m, keys->shuffled_keys[0]);
-    printf("Round 0:  ");
-    for (int i = 0; i < 16; i++) {
-        printf("%02x ", ((uint8_t*)&m)[i]);
-    }
-    printf("\n");
+    // printf("Round 0:  ");
+    // for (int i = 0; i < 16; i++) {
+    //     printf("%02x ", ((uint8_t*)&m)[i]);
+    // }
+    // printf("\n");
     // Main rounds
     for(int i = 1; i < 10; i++) {
         if(i == keys->modified_round) {
@@ -259,14 +259,10 @@ void saes_encrypt_block(const SAES_KEY* keys, const uint8_t* in, uint8_t* out) {
             for(int j = 0; j < 16; j++) {
                 ((uint8_t*)&m)[j] = keys->modified_sbox[((uint8_t*)&m)[j]];
             }
-
             // 2. ShiftRows (using Intel's instruction)
             m = _mm_shuffle_epi8(m, _mm_setr_epi8(0,5,10,15,4,9,14,3,8,13,2,7,12,1,6,11));
-
-
             // 3. MixColumns
             mix_columns(&m);
-
             // 4. AddRoundKey
             m = _mm_xor_si128(m, keys->modified_key);
 
@@ -275,11 +271,11 @@ void saes_encrypt_block(const SAES_KEY* keys, const uint8_t* in, uint8_t* out) {
             m = _mm_aesenc_si128(m, keys->shuffled_keys[i]);
         }
         //DEBUGGING
-        printf("Round %d:  ", i);
-        for (int j = 0; j < 16; j++) {
-            printf("%02x ", ((uint8_t*)&m)[j]);
-        }
-        printf("\n");
+        // printf("Round %d:  ", i);
+        // for (int j = 0; j < 16; j++) {
+        //     printf("%02x ", ((uint8_t*)&m)[j]);
+        // }
+        // printf("\n");
 
     }
     
@@ -287,30 +283,30 @@ void saes_encrypt_block(const SAES_KEY* keys, const uint8_t* in, uint8_t* out) {
     m = _mm_aesenclast_si128(m, keys->shuffled_keys[10]);
     
     //DEBUGGING
-    printf("Round 10: ");
-    for (int i = 0; i < 16; i++) {
-        printf("%02x ", ((uint8_t*)&m)[i]);
-    }
-    printf("\n");
+    // printf("Round 10: ");
+    // for (int i = 0; i < 16; i++) {
+    //     printf("%02x ", ((uint8_t*)&m)[i]);
+    // }
+    // printf("\n");
 
     _mm_storeu_si128((__m128i*)out, m);
 }
 
 void saes_decrypt_block(const SAES_KEY* keys, const uint8_t* in, uint8_t* out) {
     __m128i m = _mm_loadu_si128((__m128i*)in);
-    printf("Ciphertext: ");
-    for (int i = 0; i < 16; i++) {
-        printf("%02x ", ((uint8_t*)&m)[i]);
-    }
-    printf("\n");
+    // printf("Ciphertext: ");
+    // for (int i = 0; i < 16; i++) {
+    //     printf("%02x ", ((uint8_t*)&m)[i]);
+    // }
+    // printf("\n");
     // Initial round
     m = _mm_xor_si128(m, keys->inv_shuffled_keys[10]);
     //DEBUGGING
-    printf("Round 10: ");
-    for (int i = 0; i < 16; i++) {
-        printf("%02x ", ((uint8_t*)&m)[i]);
-    }
-    printf("\n");
+    // printf("Round 10: ");
+    // for (int i = 0; i < 16; i++) {
+    //     printf("%02x ", ((uint8_t*)&m)[i]);
+    // }
+    // printf("\n");
 
     // Main rounds
     for(int i = 9; i > 0; i--) {
@@ -335,21 +331,21 @@ void saes_decrypt_block(const SAES_KEY* keys, const uint8_t* in, uint8_t* out) {
             m = _mm_aesdec_si128(m, keys->inv_shuffled_keys[i]);
         }
         //DEBUGGING
-        printf("Round %d:  ", i);
-        for (int j = 0; j < 16; j++) {
-            printf("%02x ", ((uint8_t*)&m)[j]);
-        }
-        printf("\n");
+        // printf("Round %d:  ", i);
+        // for (int j = 0; j < 16; j++) {
+        //     printf("%02x ", ((uint8_t*)&m)[j]);
+        // }
+        // printf("\n");
     }
     
     // Final round
     m = _mm_aesdeclast_si128(m, keys->inv_shuffled_keys[0]);
     //DEBUGGING
-    printf("Round 0:  ");
-    for (int i = 0; i < 16; i++) {
-        printf("%02x ", ((uint8_t*)&m)[i]);
-    }
-    printf("\n");    
+    // printf("Round 0:  ");
+    // for (int i = 0; i < 16; i++) {
+    //     printf("%02x ", ((uint8_t*)&m)[i]);
+    // }
+    // printf("\n");    
     _mm_storeu_si128((__m128i*)out, m);
 }
 
@@ -399,9 +395,9 @@ uint8_t* saes_encrypt(const SAES_KEY* keys, const uint8_t* plaintext, size_t pla
     }
     
     // Step 3: Encrypt each block
-    printf("Encrypting %zu blocks\n", padded_length / 16);
+    // printf("Encrypting %zu blocks\n", padded_length / 16);
     for (size_t i = 0; i < padded_length; i += 16) {
-        printf("\nEncrypting block %zu\n", i / 16);
+        // printf("\nEncrypting block %zu\n", i / 16);
         saes_encrypt_block(keys, padded_data + i, ciphertext + i);
     }
     
@@ -418,9 +414,9 @@ uint8_t* saes_decrypt(const SAES_KEY* keys, const uint8_t* ciphertext, size_t ci
     }
     
     // Step 2: Decrypt each block
-    printf("Decrypting %zu blocks\n", ciphertext_length / 16);
+    // printf("Decrypting %zu blocks\n", ciphertext_length / 16);
     for (size_t i = 0; i < ciphertext_length; i += 16) {
-        printf("\nDecrypting block %zu\n", i / 16);
+        // printf("\nDecrypting block %zu\n", i / 16);
         saes_decrypt_block(keys, ciphertext + i, decrypted_data + i);
     }
     

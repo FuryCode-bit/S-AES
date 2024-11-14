@@ -1,0 +1,21 @@
+CC = gcc
+CFLAGS = -maes -msse4 -O3 -Wall -Wextra
+LIBS =
+
+all: saes_test encrypt
+
+saes_test: saes_test.o saes.o 
+	$(CC) $(CFLAGS) -o saes_test saes_test.o saes.o $(LIBS)
+
+saes.o: saes.c
+	$(CC) $(CFLAGS) -c saes.c
+
+saes_test.o: saes_test.c
+	$(CC) $(CFLAGS) -c saes_test.c
+
+
+clean:
+	rm -f saes_test decrypt encrypt *.o
+
+.PHONY: all clean
+

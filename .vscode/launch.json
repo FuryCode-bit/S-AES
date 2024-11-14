@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": false,
-      "cwd": "/home/rubens/github-classroom/S-AES",
-      "program": "/home/rubens/github-classroom/S-AES/build/Debug/outDebug",
+      "cwd": "/home/rubens/github-classroom/S-AES/AES-NI",
+      "program": "/home/rubens/github-classroom/S-AES/AES-NI/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
