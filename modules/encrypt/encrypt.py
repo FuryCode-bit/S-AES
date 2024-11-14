@@ -4,6 +4,7 @@ from modules.utils.utils import *
 
 from ciphers.custom_aes.aes import AES as Custom_AES
 from ciphers.crypto_aes.aes import StandardAES
+import hashlib
 
 import time
 
@@ -25,15 +26,24 @@ The final round
 
 class Encrypt:
 
-    def __init__(self, plaintext, key, skey, time, debug):
+    def __init__(self, plaintext, unprocessed_key, unprocessed_skey, time, debug):
 
         self.plaintext = plaintext
-        self.key = key
-        self.skey = skey
+
+        # Generate 128-bit digests for the keys
+        self.key = hashlib.shake_128(unprocessed_key).digest(16)
+
+        if unprocessed_skey:
+            self.skey = hashlib.shake_128(unprocessed_skey).digest(16)
+
         self.time = time
         self.debug = debug
 
-        self.aes = Custom_AES(self.key, self.skey, self.time, self.debug) if self.skey else Custom_AES(self.key, self.skey, self.time, self.debug)
+        self.aes = Custom_AES(self.key, self.skey, self.time, self.debug) if unprocessed_skey else Custom_AES(self.key, None, self.time, self.debug)
+
+        # Initialization of shuffled sbox and respective inverse
+        self.s_box_shuffled = []
+        self.inverse_s_box_shuffled = create_inv_s_box_shuffled()
 
     def aes_encrypt(self):
         j = 0
@@ -71,16 +81,16 @@ class Encrypt:
             self.shuffle_key_number = random_shuffle_number(self.skey)
 
             # Get a random shuffle round and initialize other variables
-            self.aes.shuffle_round = int((self.aes.shuffle_key_number % 9) + 1)
-            print("self.shuffle_round: ", self.aes.shuffle_round)
+            self.shuffle_round = int((self.shuffle_key_number % 9) + 1)
+            # debug_print(f"self.shuffle_round: {self.shuffle_round}", self.debug)
             ss_box = SUBSTITUTION_BOX.copy()
-            self.aes.s_box_shuffled = shuffle_sbox(ss_box, self.aes.shuffle_key_number)
-            calculate_inverse_matrix(self.aes.inverse_s_box_shuffled, self.aes.s_box_shuffled)
+            self.s_box_shuffled = shuffle_sbox(ss_box, self.shuffle_key_number)
+            calculate_inverse_matrix(self.inverse_s_box_shuffled, self.s_box_shuffled)
 
             
-            self.aes.round_key_offset = int(self.aes.shuffle_key_number % 16)
-            self.aes.mix_columns_offset = int(self.aes.shuffle_key_number % 4)
-            self.aes.skey = text2matrix(self.aes.skey)
+            self.round_key_offset = int(self.shuffle_key_number % 16)
+            self.mix_columns_offset = int(self.shuffle_key_number % 4)
+            self.skey = text2matrix(self.skey)
 
             start = time.time_ns()
 
@@ -92,13 +102,12 @@ class Encrypt:
 
             elapsed_time = time.time_ns() - start
 
-        if self.debug:
-            print("\n===============================================================\n")
-            
-            for ct_block in ciphertext_blocks:
-                print("saes_encrypt block ", hexlify(ct_block).decode("utf-8"))
-            
-            print("\n===============================================================\n")
+        debug_print("\n===============================================================\n", self.debug)
+        
+        for ct_block in ciphertext_blocks:
+            debug_print(f"saes_encrypt block {hexlify(ct_block).decode('utf-8')}", self.debug)
+        
+        debug_print("\n===============================================================\n", self.debug)
 
         # Combine all ciphertext blocks into the final ciphertext
         ciphertext = b''.join(ciphertext_blocks)

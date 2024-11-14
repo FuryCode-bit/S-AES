@@ -1,13 +1,14 @@
 from modules.encrypt.encrypt import Encrypt
 from modules.decrypt.decrypt import Decrypt
 from modules.speed.speed import Speed
+from modules.utils.utils import *
 from binascii import hexlify
 import argparse
+import sys
 
 def main():
     parser = argparse.ArgumentParser(description='AES Encryption/Decryption Tool')
     parser.add_argument('mode', choices=['enc', 'dec', 'speed'], help='Mode: enc (encrypt), dec (decrypt), speed (execute all)')
-    parser.add_argument('plaintext', type=str, help='Plaintext to be encrypted or decrypted (in hex format)')
     parser.add_argument('-k', '--key', type=str, required=True, help='Encryption/Decryption key (in hex format)')
     parser.add_argument('-sk', '--skey', type=str, nargs='?', help='Shuffle key (only required for saes mode, in hex format)')
     parser.add_argument('-d', '--debug', action='store_true', help='Enable Debug Mode')
@@ -15,20 +16,23 @@ def main():
 
     args = parser.parse_args()
 
-    print("Arguments:", args)
+    # Read plain from stdin
+    block = sys.stdin.read()
+
+    debug_print(f"\nArguments: {args}\n", args.debug)
     aes_method = "Custom_AES" if not args.skey else "Shuffled_AES"
 
     if args.mode == 'speed':
-        print("Running speed test with all options...")
-        speed_test = Speed(args.plaintext, args.key, args.skey, args.time, args.debug)
+        debug_print("Running speed test with all options...", args.debug)
+        speed_test = Speed(block, args.key, args.skey, args.time, args.debug)
         speed_test.Crypto_AES_speed()
         speed_test.Custom_AES_speed()
         if args.skey:
             speed_test.Shuffled_AES_speed()
 
     elif args.mode == 'enc':
-        print("Encryption Mode Selected - Method:", aes_method)
-        plaintext_bytes = bytes.fromhex(args.plaintext)
+        debug_print(f"Encryption Mode Selected - Method: {aes_method}", args.debug)
+        plaintext_bytes = bytes.fromhex(block)
         key_bytes = bytes.fromhex(args.key)
         skey_bytes = bytes.fromhex(args.skey) if args.skey else None
         
@@ -40,13 +44,18 @@ def main():
         else:
             ciphertext, enc_time = encryptor.saes_encrypt()
 
-        print("Encrypted Text (hex):", hexlify(ciphertext).decode("utf-8"))
+        if not args.debug:
+            # Stdout
+            for bit in ciphertext:
+                print(chr(bit),end="")
+
+        debug_print(f"Encrypted Text (hex): {hexlify(ciphertext).decode('utf-8')}", args.debug)
         if args.time:
-            print("Encryption Time (ns):", enc_time)
+            debug_print(f"Encryption Time (ns): {enc_time}", args.debug)
 
     elif args.mode == 'dec':
-        print("Decryption Mode Selected - Method:", aes_method)
-        ciphertext_bytes = bytes.fromhex(args.plaintext)
+        debug_print(f"Decryption Mode Selected - Method: {aes_method}", args.debug)
+        ciphertext_bytes = bytes.fromhex(block)
         key_bytes = bytes.fromhex(args.key)
         skey_bytes = bytes.fromhex(args.skey) if args.skey else None
 
@@ -58,9 +67,13 @@ def main():
         else:
             decrypted_text, dec_time = decryptor.saes_decrypt(ciphertext_bytes)
 
-        print("Decrypted Text (hex):", hexlify(decrypted_text).decode("utf-8"))
+        debug_print(f"Decrypted Text (hex): {hexlify(decrypted_text).decode('utf-8')}", args.debug)
         if args.time:
-            print("Decryption Time (ns):", dec_time)
+            debug_print(f"Decryption Time (ns): {dec_time}", args.debug)
 
+        if not args.debug:
+            # Stdout
+            for bit in decrypted_text:
+                print(chr(bit),end="")
 if __name__ == "__main__":
     main()

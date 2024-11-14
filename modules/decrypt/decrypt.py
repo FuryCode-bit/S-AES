@@ -2,29 +2,19 @@ from binascii import hexlify
 from ciphers.custom_aes.aes import AES as Custom_AES
 from modules.utils.constants import *
 from modules.utils.utils import *
+import hashlib
 import time
-'''
-Steps in AES encryption:
-
-Addition of the first round key
-9 Rounds:
-    Substitute Bytes (S-Box)
-    Shift Rows
-    Mix Columns
-    Adding the Round Key
-The final round
-    Substitute Bytes  (S-Box)
-    Shift Rows
-    Adding the Round Key
-    
-'''
 
 class Decrypt():
 
-    def __init__(self, key, skey, time, debug):
-        self.key = key
-        self.skey = skey
-        self.round_keys = (self.key, self.skey)
+    def __init__(self, unprocessed_key, unprocessed_skey, time, debug):
+
+        # Generate 128-bit digests for the keys
+        self.key = hashlib.shake_128(unprocessed_key).digest(16)
+        
+        if unprocessed_skey:
+            self.skey = hashlib.shake_128(unprocessed_skey).digest(16)
+
         self.round_key_offset = 0
         self.mix_columns_offset = 0
 
@@ -39,7 +29,7 @@ class Decrypt():
         self.time = time
         self.debug = debug
 
-        self.aes = Custom_AES(self.key, self.skey, self.time, self.debug) if self.skey else Custom_AES(self.key, self.skey, self.time, self.debug)
+        self.aes = Custom_AES(self.key, self.skey, self.time, self.debug) if unprocessed_skey else Custom_AES(self.key, None, self.time, self.debug)
 
     def aes_decrypt(self, ciphertext):
         # Step 1: Ensure ciphertext length is a multiple of 16
@@ -91,5 +81,5 @@ class Decrypt():
         # Combine all decrypted blocks and remove padding
         padded_plaintext = b''.join(plaintext_blocks)
         plaintext = unpad_pkcs7(padded_plaintext)
-        print("plaintext: ", plaintext)
+        debug_print(f"plaintext: {plaintext}", self.debug)
         return plaintext, elapsed_time

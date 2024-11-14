@@ -3,14 +3,9 @@ A modified version of the well-known symmetric encryption algorithm, AES.
 
 ## Work
 
-The work consists on implementing a shuffled version of AES (S-AES), which will be similar to AES
-but with an extra 128-bit key (shuffling key, SK)
+How to execute:
 
-S-AES will operate as AES, but with two differences:
-
- * Shuffled Round Keys
-
- * One Modified Round
+echo some_plain | python main.py enc/dec/speed [-k key] [-sk skey] [--time] [--debug]
 
 ## Documentation:
 

@@ -14,11 +14,11 @@ class Speed:
         self.debug = debug
 
         self.crypto_aes = StandardAES(self.key)
-        self.aes_enc = AES(self.key, self.skey, self.time, self.debug)
-        self.saes_enc = AES(self.key, self.skey, self.time, self.debug) if self.skey else None
+        self.aes_enc = Encrypt(self.plaintext_bytes, self.key, self.skey, self.time, self.debug)
+        self.saes_enc = Encrypt(self.plaintext_bytes, self.key, self.skey, self.time, self.debug) if self.skey else None
 
-        self.aes_dec = AES(self.key, self.skey, self.time, self.debug)
-        self.saes_dec = AES(self.key, self.skey, self.time, self.debug) if self.skey else None
+        self.aes_dec = Decrypt(self.key, self.skey, self.time, self.debug)
+        self.saes_dec = Decrypt(self.key, self.skey, self.time, self.debug) if self.skey else None
 
 # key = bytes.fromhex('2b7e151628aed2a6abf7158809cf4f3c')
 # skey = bytes.fromhex("10000000000000000000000000000000")
@@ -86,14 +86,14 @@ class Speed:
         print(f'KEY       : {hexlify(self.key).decode("utf-8")}')
         
         # Encrypt
-        ciphertext = self.aes_enc.aes_encrypt(self.plaintext_bytes)
+        ciphertext, aes_enc_time = self.aes_enc.aes_encrypt()
         print(f'\nCIPHERTEXT: {hexlify(ciphertext).decode("utf-8")}')
         # print(f'Custom AES Encryption Time in ns: {aes_enc_time}')
 
         # Decrypt
-        decrypted_text = self.aes_dec.aes_decrypt(ciphertext)
+        decrypted_text, aes_dec_time = self.aes_dec.aes_decrypt(ciphertext)
         print(f'\nDECRYPTED : {hexlify(decrypted_text).decode("utf-8")}')
-        # print(f'Custom AES Decryption Time in ns: {aes_dec_time}')
+        print(f'Custom AES Decryption Time in ns: {aes_dec_time}')
 
     def Shuffled_AES_speed(self):
 
@@ -107,12 +107,12 @@ class Speed:
         print(f'SKEY      : {hexlify(self.skey).decode("utf-8")}')
         
         # Encrypt
-        ciphertext = self.saes_enc.saes_encrypt(self.plaintext_bytes)
+        ciphertext, saes_enc_time = self.saes_enc.saes_encrypt()
         print(f'\nSHUFFLED AES CIPHERTEXT: {hexlify(ciphertext).decode("utf-8")}')
-        # print(f'Shuffled AES Encryption Time in ns: {saes_enc_time}')
+        print(f'Shuffled AES Encryption Time in ns: {saes_enc_time}')
 
         # Decrypt
-        decrypted_text = self.saes_dec.saes_decrypt(ciphertext)
+        decrypted_text, saes_dec_time = self.saes_dec.saes_decrypt(ciphertext)
         print(decrypted_text)
         print(f'\nDECRYPTED: {hexlify(decrypted_text).decode("utf-8")}')
-        # print(f'Shuffled AES Decryption Time in ns: {saes_dec_time}')
+        print(f'Shuffled AES Decryption Time in ns: {saes_dec_time}')

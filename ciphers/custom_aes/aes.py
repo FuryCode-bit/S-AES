@@ -1,7 +1,12 @@
+# Custom_AES works! SAES dont either
+
+# N mudei sub bytes nem inv
+
 from binascii import hexlify
 from modules.utils.constants import *
 from modules.utils.utils import *
 import time
+from copy import copy
 '''
 Steps in AES encryption:
 
@@ -95,18 +100,15 @@ class AES:
         else:
             # Shuffled Shift Rows
             index = int(self.shuffle_key_number % len(PERMUTATIONS))
-            permutation = PERMUTATIONS[index]
-            temp_matrix = [[0] * 4 for _ in range(4)]
+            perm = PERMUTATIONS[index]
             
-            for i in range(4):
-                for j in range(4):
-                    temp_matrix[j][i] = matrix[(permutation[i] + j) % 4][i]
-            
-            for i in range(4):
-                for j in range(4):
-                    matrix[i][j] = temp_matrix[i][j]
+            matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0] = matrix[(perm[0]) % 4][0], matrix[(perm[0] + 1) % 4][0], matrix[(perm[0] + 2) % 4][0], matrix[(perm[0] + 3) % 4][0]
+            matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1] = matrix[(perm[1]) % 4][1], matrix[(perm[1] + 1) % 4][1], matrix[(perm[1] + 2) % 4][1], matrix[(perm[1] + 3) % 4][1]
+            matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2] = matrix[(perm[2]) % 4][2], matrix[(perm[2] + 1) % 4][2], matrix[(perm[2] + 2) % 4][2], matrix[(perm[2] + 3) % 4][2]
+            matrix[0][3], matrix[1][3], matrix[2][3], matrix[3][3] = matrix[(perm[3]) % 4][3], matrix[(perm[3] + 1) % 4][3], matrix[(perm[3] + 2) % 4][3], matrix[(perm[3] + 3) % 4][3]
 
         return matrix
+
     
     def gmul(self, a, b):
         """Galois Field (2^8) Multiplication of two bytes"""
@@ -126,25 +128,40 @@ class AES:
         Performs Mix Columns operation on a 4x4 matrix.
         Uses shuffled column permutation if `shuffled` is True.
         """
-        columns = []
-        for j in range(4):
-            # Extract column
-            column = [state[i][j] for i in range(4)]
-            
-            # Store original values
-            a, b, c, d = column
-            
-            # Mix column operation
-            state[0][j] = self.gmul(2, a) ^ self.gmul(3, b) ^ c ^ d
-            state[1][j] = a ^ self.gmul(2, b) ^ self.gmul(3, c) ^ d
-            state[2][j] = a ^ b ^ self.gmul(2, c) ^ self.gmul(3, d)
-            state[3][j] = self.gmul(3, a) ^ b ^ c ^ self.gmul(2, d)
+        if not shuffled:
+            for j in range(4):
+                
+                # Store original values
+                a = state[j][0]
+                b = state[j][1]
+                c = state[j][2]
+                d = state[j][3]
+                
+                # Mix column operation
+                state[j][0] = self.gmul(2, a) ^ self.gmul(3, b) ^ c ^ d
+                state[j][1] = a ^ self.gmul(2, b) ^ self.gmul(3, c) ^ d
+                state[j][2] = a ^ b ^ self.gmul(2, c) ^ self.gmul(3, d)
+                state[j][3] = self.gmul(3, a) ^ b ^ c ^ self.gmul(2, d)
+            return state
+        else:
+            columns = []
+            for i in range(4):
+                # Extract column
+                column = state[i]
+                # print("columns mix_col: ", i, column)
+                temp = copy(column)
+                # Store original values
+                v0, v1, v2, v3 = (temp[0], temp[1], temp[2],temp[3])
+                
+                # Mix column operation
+                column[0] = self.gmul(2, v0) ^ v3 ^ v2 ^ self.gmul(3, v1)
+                column[1] = self.gmul(2, v1) ^ v0 ^ v3 ^ self.gmul(3, v2)
+                column[2] = self.gmul(2, v2) ^ v1 ^ v0 ^ self.gmul(3, v3)
+                column[3] = self.gmul(3, v3) ^ v2 ^ v1 ^ self.gmul(2, v0)
 
-        # Apply column offset if shuffled
-        offset = self.mix_columns_offset if shuffled else 0
-        for i, column in enumerate(columns):
-            state[(i + offset) % 4] = column
-        return state
+            for index, column in enumerate(columns):
+                state[(index + self.mix_columns_offset) % 4] = column
+            return state
         
     def add_round_key(self, matrix, key, shuffled=False):
     # params: block | all_round_keys | Boolean
@@ -169,55 +186,64 @@ class AES:
                     block[i][j] = self.inverse_s_box_shuffled[block[i][j]]  # Use shuffled S-box
         return block
 
-    def inv_shift_rows(self, block, shuffled=False):
+    def inv_shift_rows(self, matrix, shuffled=False):
         """Inverse Shift Rows operation."""
         if not shuffled:
             for i in range(4):
                 # Perform the normal inverse shift (circular right shift)
-                block[i] = block[i][-i:] + block[i][:-i]
+                matrix[i] = matrix[i][-i:] + matrix[i][:-i]
         else:
             # Shuffled inverse shift rows using permutation
             index = int(self.shuffle_key_number % len(PERMUTATIONS))
-            permutation = PERMUTATIONS[index]
-            temp_block = [[0] * 4 for _ in range(4)]
-            
-            for i in range(4):
-                for j in range(4):
-                    temp_block[(permutation[i] + j) % 4][i] = block[j][i]
-            
-            # Copy back to the original block
-            for i in range(4):
-                for j in range(4):
-                    block[i][j] = temp_block[i][j]
+            perm = PERMUTATIONS[index]            
 
-        return block
+            matrix[(perm[0]) % 4][0], matrix[(perm[0] + 1) % 4][0], matrix[(perm[0] + 2) % 4][0], matrix[(perm[0] + 3) % 4][0] = matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0]
+            matrix[(perm[1]) % 4][1], matrix[(perm[1] + 1) % 4][1], matrix[(perm[1] + 2) % 4][1], matrix[(perm[1] + 3) % 4][1] = matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1]
+            matrix[(perm[2]) % 4][2], matrix[(perm[2] + 1) % 4][2], matrix[(perm[2] + 2) % 4][2], matrix[(perm[2] + 3) % 4][2] = matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2]
+            matrix[(perm[3]) % 4][3], matrix[(perm[3] + 1) % 4][3], matrix[(perm[3] + 2) % 4][3], matrix[(perm[3] + 3) % 4][3] = matrix[0][3], matrix[1][3], matrix[2][3], matrix[3][3]
 
-    def inv_mix_columns(self, state, shuffled=False):
+        return matrix
+
+    def inv_mix_columns(self, state, shuffled = False):
         """Inverse Mix Columns transformation."""
         # Apply the inverse MixColumns operation
+        if not shuffled:
+            for j in range(4):
 
-        columns = []
-        for j in range(4):
+                a = state[j][0]
+                b = state[j][1]
+                c = state[j][2]
+                d = state[j][3]
 
-            a = state[0][j]
-            b = state[1][j]
-            c = state[2][j]
-            d = state[3][j]
+                state[j][0] = self.gmul(14, a) ^ self.gmul(9, d) ^ self.gmul(13, c) ^ self.gmul(11, b)
+                state[j][1] = self.gmul(14, b) ^ self.gmul(9, a) ^ self.gmul(13, d) ^ self.gmul(11, c)
+                state[j][2] = self.gmul(14, c) ^ self.gmul(9, b) ^ self.gmul(13, a) ^ self.gmul(11, d)
+                state[j][3] = self.gmul(14, d) ^ self.gmul(9, c) ^ self.gmul(13, b) ^ self.gmul(11, a)
+            
+            return state
+        else:
+            columns = []
+            for i in range(4):
+                column = state[i]
+                # print("coluns inv_mix_col: ", i, column)
+                temp = copy(column)
+                a = temp[0]
+                b = temp[1]
+                c = temp[2]
+                d = temp[3]
 
-            state[0][j] = self.gmul(a, 0x0e) ^ self.gmul(b, 0x0b) ^ self.gmul(c, 0x0d) ^ self.gmul(d, 0x09)
-            state[1][j] = self.gmul(a, 0x09) ^ self.gmul(b, 0x0e) ^ self.gmul(c, 0x0b) ^ self.gmul(d, 0x0d)
-            state[2][j] = self.gmul(a, 0x0d) ^ self.gmul(b, 0x09) ^ self.gmul(c, 0x0e) ^ self.gmul(d, 0x0b)
-            state[3][j] = self.gmul(a, 0x0b) ^ self.gmul(b, 0x0d) ^ self.gmul(c, 0x09) ^ self.gmul(d, 0x0e)
+                column[0] = self.gmul(14, a) ^ self.gmul(9, d) ^ self.gmul(13, c) ^ self.gmul(11, b)
+                column[1] = self.gmul(14, b) ^ self.gmul(9, a) ^ self.gmul(13, d) ^ self.gmul(11, c)
+                column[2] = self.gmul(14, c) ^ self.gmul(9, b) ^ self.gmul(13, a) ^ self.gmul(11, d)
+                column[3] = self.gmul(14, d) ^ self.gmul(9, c) ^ self.gmul(13, b) ^ self.gmul(11, a)
+                columns.append(column)
 
-        # Apply inverse column offset if shuffled
-        if shuffled:
+            # Apply inverse column offset if shuffled
             offset = self.mix_columns_offset
-            for i, column in enumerate(columns):
+            for index, column in enumerate(columns):
                 # Shift column by the negative offset to undo the previous shuffle
-                state[(i - offset) % 4] = column
-        
-        return state
-    
+                state[(index + self.mix_columns_offset) % 4] = column
+            return state
     def encryption_block(self, text):
         
         #Convert the text to a 4x4 matrix
@@ -326,7 +352,6 @@ class AES:
         #Step 2: Perform 9 rounds
         for i in range(1, 10):
             if i == self.shuffle_round:
-                print("\nShuffle\n")
                 state = self.sub_bytes(state, True)
                 debug_print(f"round[ {i}].s_box  {hexlify(bytes(matrix2text(state))).decode('utf-8')}, {self.shuffle_round}", self.debug)
                 state = self.shift_rows(state, True)
@@ -391,7 +416,6 @@ class AES:
             
             # Shuffle round
             if i == self.shuffle_round:
-                print("\nShuffle\n")
 
                 state = self.add_round_key(state, self.round_keys[i], True)
                 debug_print(f"round[{j}].k_sch {hexlify(bytes(self.round_keys[i])).decode('utf-8')}, {self.shuffle_round}", self.debug)
@@ -467,7 +491,7 @@ class AES:
 
             # Get a random shuffle round and initialize other variables
             self.shuffle_round = int((self.shuffle_key_number % 9) + 1)
-            print("self.shuffle_round: ", self.shuffle_round)
+            # debug_print(f"self.shuffle_round: {self.shuffle_round}", self.debug)
             ss_box = SUBSTITUTION_BOX.copy()
             self.s_box_shuffled = shuffle_sbox(ss_box, self.shuffle_key_number)
             calculate_inverse_matrix(self.inverse_s_box_shuffled, self.s_box_shuffled)
@@ -487,13 +511,12 @@ class AES:
 
             elapsed_time = time.time_ns() - start
 
-        if self.debug:
-            print("\n===============================================================\n")
-            
-            for ct_block in ciphertext_blocks:
-                print("saes_encrypt block ", hexlify(ct_block).decode("utf-8"))
-            
-            print("\n===============================================================\n")
+        debug_print("\n===============================================================\n", self.debug)
+        
+        for ct_block in ciphertext_blocks:
+            debug_print(f"saes_encrypt block {hexlify(ct_block).decode('utf-8')}", self.debug)
+        
+        debug_print("\n===============================================================\n", self.debug)
 
         # Combine all ciphertext blocks into the final ciphertext
         ciphertext = b''.join(ciphertext_blocks)
@@ -549,5 +572,5 @@ class AES:
         # Combine all decrypted blocks and remove padding
         padded_plaintext = b''.join(plaintext_blocks)
         plaintext = unpad_pkcs7(padded_plaintext)
-        print("plaintext: ", plaintext)
+        debug_print(f"plaintext: {plaintext}", self.debug)
         return plaintext
