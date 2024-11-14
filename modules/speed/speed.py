@@ -1,8 +1,8 @@
 from ciphers.crypto_aes.aes import StandardAES
-from ciphers.custom_aes.aes import AES
 from modules.encrypt.encrypt import Encrypt
 from modules.decrypt.decrypt import Decrypt
 from binascii import hexlify
+import os
 
 class Speed:
     def __init__(self, plaintext, key, skey = None,time = False, debug = False):
@@ -20,6 +20,13 @@ class Speed:
         self.aes_dec = Decrypt(self.key, self.skey, self.time, self.debug)
         self.saes_dec = Decrypt(self.key, self.skey, self.time, self.debug) if self.skey else None
 
+        self.min_enc_time_crypto_aes = float('inf')
+        self.min_dec_time_crypto_aes = float('inf')
+        self.min_enc_time_custom_aes = float('inf')
+        self.min_dec_time_custom_aes = float('inf')
+        self.min_enc_time_saes = float('inf')
+        self.min_dec_time_saes = float('inf')
+    
 # key = bytes.fromhex('2b7e151628aed2a6abf7158809cf4f3c')
 # skey = bytes.fromhex("10000000000000000000000000000000")
 
@@ -53,8 +60,34 @@ class Speed:
 
 # plaintext = "00112233445566778899aabbccddeeff"
 # plaintext = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+    def measure_performance(self, plaintext_bytes, key, skey):
 
+        # Measure encryption time
+        ciphertext_crypto_aes, enc_time_crypto_aes = StandardAES(key).encrypt(plaintext_bytes)
+        self.min_enc_time_crypto_aes = min(self.min_enc_time_crypto_aes, enc_time_crypto_aes)
+
+        # Measure decryption time
+        decrypted_text_crypto_aes, dec_time_crypto_aes = StandardAES(key).decrypt(ciphertext_crypto_aes)
+        self.min_dec_time_crypto_aes = min(self.min_dec_time_crypto_aes, dec_time_crypto_aes)
+
+        # Measure encryption time
+        ciphertext_custom_aes, enc_time_custom_aes = Encrypt(plaintext_bytes, key, None, self.time, self.debug).aes_encrypt()
+        self.min_enc_time_custom_aes = min(self.min_enc_time_custom_aes, enc_time_custom_aes)
+
+        # Measure decryption time
+        decrypted_text_custom_aes, dec_time_custom_aes = Decrypt(key, None, self.time, self.debug).aes_decrypt(ciphertext_custom_aes)
+        self.min_dec_time_custom_aes = min(self.min_dec_time_custom_aes, dec_time_custom_aes)
+
+        # Measure encryption time
+        ciphertext_saes, enc_time_saes = Encrypt(plaintext_bytes, key, skey, self.time, self.debug).saes_encrypt()
+        self.min_enc_time_saes = min(self.min_enc_time_saes, enc_time_saes)
+
+        # Measure decryption time
+        decrypted_text_saes, dec_time_saes = Decrypt(key, skey, self.time, self.debug).saes_decrypt(ciphertext_saes)
+        self.min_dec_time_saes = min(self.min_dec_time_saes, dec_time_saes)
+        
     def Crypto_AES_speed(self):
+        
         print('\n===================================================================')
         print("                           Crypto_AES                                ")
         print('===================================================================\n')
@@ -63,20 +96,19 @@ class Speed:
         print(f'\nPLAINTEXT : {self.plaintext}')
         print(f'KEY       : {hexlify(self.key).decode("utf-8")}')
 
-        # Operação é ns - s
         ciphertext, std_aes_enc_time = self.crypto_aes.encrypt(self.plaintext_bytes)
         print(f'\nSTANTARD AES CIPHERTEXT: {hexlify(ciphertext).decode("utf-8")}')
         print(f'STANTARD AES Encryption Time in ns: {std_aes_enc_time}')
 
-        # Decrypt the ciphertext
 
-        # Operação é ns - s
+        # Decrypt the ciphertext
         decrypted_text, std_aes_dec_time = self.crypto_aes.decrypt(ciphertext)
         print(f'\nDECRYPTED : {hexlify(decrypted_text).decode("utf-8")}')
         print(f'SANTARD AES Decryption Time in ns: {str(std_aes_dec_time)}')
         # print(f'SAES Decryption Time in ms: {str(saes_dec_time/1000000)}')
 
     def Custom_AES_speed(self):
+
         print('\n===================================================================')
         print("                           Custom_AES                                ")
         print('===================================================================\n')
@@ -95,8 +127,9 @@ class Speed:
         print(f'\nDECRYPTED Custom AES: {hexlify(decrypted_text).decode("utf-8")}')
         print(f'Custom AES Decryption Time in ns: {aes_dec_time}')
 
-    def Shuffled_AES_speed(self):
 
+    def Shuffled_AES_speed(self):
+            
         print('\n===================================================================')
         print("                         Shuffled-AES                                ")
         print('===================================================================\n')
@@ -115,3 +148,45 @@ class Speed:
         decrypted_text, saes_dec_time = self.saes_dec.saes_decrypt(ciphertext)
         print(f'\nDECRYPTED Shuffled AES: {hexlify(decrypted_text).decode("utf-8")}')
         print(f'Shuffled AES Decryption Time in ns: {saes_dec_time}')
+
+
+
+        min_enc_time = float('inf')
+        min_dec_time = float('inf')
+
+
+    def speed(self):
+
+        if self.debug:
+            self.Crypto_AES_speed()
+            self.Custom_AES_speed()
+            if self.skey:
+                self.Shuffled_AES_speed()
+        else:
+
+            for _ in range(10000):
+                # Generate random plaintext and key for each iteration
+                buffer_plaintext = os.urandom(4096)
+                buffer_key = os.urandom(16)  # 128-bit key
+                buffer_skey = os.urandom(16)
+
+                self.measure_performance(buffer_plaintext, buffer_key, buffer_skey)
+                
+                # min_enc_time_crypto_aes = min(min_enc_time_crypto_aes, metcra)
+                # min_dec_time_crypto_aes = min(min_dec_time_crypto_aes, mdtcra)
+                # min_enc_time_custom_aes = min(min_enc_time_custom_aes, metca)
+                # min_dec_time_custom_aes = min(min_dec_time_custom_aes, mdtca)
+                # min_enc_time_saes = min(min_enc_time_saes, mets)
+                # min_dec_time_saes = min(min_dec_time_saes, mdts)
+
+            print("\n===================================================\n")
+            print("\nMinimum Encryption time\n")
+            print(f"Crypto_aes: {self.min_enc_time_crypto_aes} ns")
+            print(f"AES: {self.min_enc_time_custom_aes} ns")
+            print(f"Shuffle AES: {self.min_enc_time_saes} ns")
+            print("\n===================================================\n")
+            print("\nMinimum Decryption time\n")
+            print(f"Crypto_aes: {self.min_dec_time_crypto_aes} ns")
+            print(f"AES: {self.min_dec_time_custom_aes} ns")
+            print(f"Shuffle AES: {self.min_dec_time_saes} ns")
+            print("\n===================================================\n")

@@ -21,7 +21,7 @@ class StandardAES:
 
         # print("enc_time_ns: ", enc_time_ns)
 
-        return ciphertext, enc_time_ns
+        return ciphertext, int(enc_time_ns/1e10)
 
     def decrypt(self, ciphertext_bytes):
         """
@@ -37,4 +37,4 @@ class StandardAES:
 
         plaintext = unpad(plaintext_padded, AES.block_size)  # Remove padding
 
-        return plaintext, dec_time_ns
+        return plaintext, int(dec_time_ns/1e10)

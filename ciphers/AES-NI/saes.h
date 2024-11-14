@@ -14,6 +14,7 @@ typedef struct {
     uint8_t inv_modified_sbox[256]; // Inverse modified S-box
     int modified_round;        // Which round is modified (1-9)
     __m128i modified_key;      // Modified round key with SK XOR
+    __m128i inv_modified_key;  // Inverse modified round key
 } SAES_KEY;
 
 // Initialize S-AES keys and modifications
@@ -24,5 +25,9 @@ void saes_encrypt_block(const SAES_KEY* keys, const uint8_t* in, uint8_t* out);
 
 // Decrypt a single block
 void saes_decrypt_block(const SAES_KEY* keys, const uint8_t* in, uint8_t* out);
+
+uint8_t* saes_encrypt(const SAES_KEY *keys, const uint8_t *plaintext, size_t plaintext_length, size_t *ciphertext_length); 
+
+uint8_t* saes_decrypt(const SAES_KEY *keys, const uint8_t *ciphertext, size_t ciphertext_length, size_t *plaintext_length);
 
 #endif /* SAES_H */

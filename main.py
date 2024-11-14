@@ -25,10 +25,7 @@ def main():
     if args.mode == 'speed':
         debug_print("Running speed test with all options...", args.debug)
         speed_test = Speed(block, args.key, args.skey, args.time, args.debug)
-        speed_test.Crypto_AES_speed()
-        speed_test.Custom_AES_speed()
-        if args.skey:
-            speed_test.Shuffled_AES_speed()
+        speed_test.speed()
 
     elif args.mode == 'enc':
         debug_print(f"Encryption Mode Selected - Method: {aes_method}", args.debug)
