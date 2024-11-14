@@ -8,22 +8,6 @@ import hashlib
 
 import time
 
-'''
-Steps in AES encryption:
-
-Addition of the first round key
-9 Rounds:
-    Substitute Bytes (S-Box)
-    Shift Rows
-    Mix Columns
-    Adding the Round Key
-The final round
-    Substitute Bytes  (S-Box)
-    Shift Rows
-    Adding the Round Key
-    
-'''
-
 class Encrypt:
 
     def __init__(self, plaintext, unprocessed_key, unprocessed_skey, time, debug):

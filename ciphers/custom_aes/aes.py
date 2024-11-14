@@ -1,12 +1,14 @@
-# Custom_AES works! SAES dont either
-
-# N mudei sub bytes nem inv
-
 from binascii import hexlify
 from modules.utils.constants import *
 from modules.utils.utils import *
-import time
 from copy import copy
+import time
+
+'''
+This class implements the Advanced Encryption Standard (AES) algorithm 
+for encryption and decryption and their respective shuffled versions.
+'''
+
 '''
 Steps in AES encryption:
 
@@ -20,12 +22,23 @@ The final round
     Substitute Bytes  (S-Box)
     Shift Rows
     Adding the Round Key
-    
 '''
 
 class AES:
 
     def __init__(self, key, skey=None, time=False, debug=False):
+        '''
+        Initialize AES with encryption parameters and round keys schedule.
+
+        Parameters:
+        - key: Main - encryption key (128 bits) used for the AES algorithm.
+        - skey: Optional - shuffle key (128 bits) to use in shuffled AES.
+        - time: Boolean - flag to measure encryption time.
+        - debug: Boolean - flag for debugging output.
+
+        Initializes round keys and key expansion.
+        '''
+                
         self.key = key
         self.skey = skey
         self.round_keys = self.key_expansion()
@@ -44,6 +57,13 @@ class AES:
         self.debug = debug
         
     def key_expansion(self):
+
+        '''
+        Expand the cipher key into an array of round keys for encryption.
+
+        Returns:
+        - List of round keys, each consisting of 16 bytes (128 bits).
+        '''
         
         nk = 4  #The key is 128 bits, so 4 words of 32 bits each
         nr = 10 #The number of roundKeys is 10
@@ -75,6 +95,7 @@ class AES:
             expanded_key[i*4:(i+1)*4] = xor_words(expanded_key[(i - nk) * 4:i * 4], temp)
         
         #Convert the expanded key to a list of 16-byte round keys
+
         round_keys = []
         for i in range(nr + 1):
             start = i * 16
@@ -83,35 +104,69 @@ class AES:
         
         return round_keys
     
-    def sub_bytes(self, block, shuffled=False):
-        """Sub Bytes using inverse S-box."""
+    def sub_bytes(self, state, shuffled=False):
+        '''
+        Apply the SubBytes transformation using the Substitution-box.
+
+        Parameters:
+        - state: 4x4 state matrix to be transformed.
+        - shuffled: Boolean flag to use shuffled S-box.
+
+        Returns:
+        - The transformed 4x4 matrix.
+        '''
+
         for i in range(4):
             for j in range(4):
                 if not shuffled:
-                    block[i][j] = SUBSTITUTION_BOX[block[i][j]]
+                    state[i][j] = SUBSTITUTION_BOX[state[i][j]]
                 else:
-                    block[i][j] = self.s_box_shuffled[block[i][j]]
-        return block
+                    state[i][j] = self.s_box_shuffled[state[i][j]]
+        return state
 
-    def shift_rows(self, matrix, shuffled=False):
+    def shift_rows(self, state, shuffled=False):
+        '''
+        Perform the ShiftRows operation, either in standard or shuffled mode.
+
+        Parameters:
+        - state: 4x4 state matrix to be transformed.
+        - shuffled: Boolean flag to use shuffled row shift.
+
+        Returns:
+        - The transformed 4x4 matrix.
+        '''
+
         if not shuffled:
             for i in range(4):
-                matrix[i] = matrix[i][i:] + matrix[i][:i]
+                state[i] = state[i][i:] + state[i][:i]
         else:
-            # Shuffled Shift Rows
+            # Shuffled ShiftRows: row shifts are based on predefined permutations
             index = int(self.shuffle_key_number % len(PERMUTATIONS))
-            perm = PERMUTATIONS[index]
+            permutations = PERMUTATIONS[index]
             
-            matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0] = matrix[(perm[0]) % 4][0], matrix[(perm[0] + 1) % 4][0], matrix[(perm[0] + 2) % 4][0], matrix[(perm[0] + 3) % 4][0]
-            matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1] = matrix[(perm[1]) % 4][1], matrix[(perm[1] + 1) % 4][1], matrix[(perm[1] + 2) % 4][1], matrix[(perm[1] + 3) % 4][1]
-            matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2] = matrix[(perm[2]) % 4][2], matrix[(perm[2] + 1) % 4][2], matrix[(perm[2] + 2) % 4][2], matrix[(perm[2] + 3) % 4][2]
-            matrix[0][3], matrix[1][3], matrix[2][3], matrix[3][3] = matrix[(perm[3]) % 4][3], matrix[(perm[3] + 1) % 4][3], matrix[(perm[3] + 2) % 4][3], matrix[(perm[3] + 3) % 4][3]
-
-        return matrix
+            # Apply the permutation to shift rows in a shuffled manner
+            shuffled_state = [[0] * 4 for _ in range(4)]
+            for col in range(4):
+                for row in range(4):
+                    shuffled_state[row][col] = state[(permutations[row] + col) % 4][col]
+                    
+            # Update the original state matrix with the shuffled values
+            state = [list(row) for row in shuffled_state]
+            
+        return state
 
     
     def gmul(self, a, b):
-        """Galois Field (2^8) Multiplication of two bytes"""
+        '''
+        Perform Galois Field (2^8) multiplication of two bytes. Based from [2]
+
+        Parameters:
+        - a, b: Byte values to be multiplied in GF(2^8).
+
+        Returns:
+        - Product of a and b within GF(2^8).
+        '''
+
         p = 0
         for _ in range(8):
             if b & 1:
@@ -124,10 +179,18 @@ class AES:
         return p & 0xff
 
     def mix_columns(self, state, shuffled=False):
+        '''
+        Perform the MixColumns transformation on a 4x4 matrix. Code adapted from [1]
         """
-        Performs Mix Columns operation on a 4x4 matrix.
-        Uses shuffled column permutation if `shuffled` is True.
-        """
+
+        Parameters:
+        - state: The 4x4 state matrix.
+        - shuffled: Boolean flag to apply a shuffled column mix.
+
+        Returns:
+        - The transformed state matrix.
+        '''
+
         if not shuffled:
             for j in range(4):
                 
@@ -148,7 +211,6 @@ class AES:
             for i in range(4):
                 # Extract column
                 column = state[i]
-                # print("columns mix_col: ", i, column)
                 temp = copy(column)
                 # Store original values
                 v0, v1, v2, v3 = (temp[0], temp[1], temp[2],temp[3])
@@ -164,8 +226,18 @@ class AES:
             return state
         
     def add_round_key(self, matrix, key, shuffled=False):
-    # params: block | all_round_keys | Boolean
-        # offset = self.round_key_offset if shuffled else 0
+        '''
+        XOR the round key with the state matrix.
+
+        Parameters:
+        - matrix: The 4x4 state matrix.
+        - key: The current round key.
+        - shuffled: Boolean flag for shuffled operation.
+
+        Returns:
+        - The state matrix after round key addition.
+        '''
+
         if shuffled:
             offset = self.round_key_offset
         else:
@@ -186,27 +258,49 @@ class AES:
                     block[i][j] = self.inverse_s_box_shuffled[block[i][j]]  # Use shuffled S-box
         return block
 
-    def inv_shift_rows(self, matrix, shuffled=False):
-        """Inverse Shift Rows operation."""
+    def inv_shift_rows(self, state, shuffled=False):
+        '''
+        Perform inverse Shift_Rows transformation on the state.
+
+        Parameters:
+        - state: The 4x4 state matrix.
+        - shuffled: Boolean flag for shuffled inverse rows.
+
+        Returns:
+        - The state matrix after inverse row shifts.
+        '''
+
         if not shuffled:
             for i in range(4):
                 # Perform the normal inverse shift (circular right shift)
-                matrix[i] = matrix[i][-i:] + matrix[i][:-i]
+                state[i] = state[i][-i:] + state[i][:-i]
         else:
-            # Shuffled inverse shift rows using permutation
+            # Shuffled Inverse Shift_Rows: row shifts are based on predefined permutations
             index = int(self.shuffle_key_number % len(PERMUTATIONS))
-            perm = PERMUTATIONS[index]            
-
-            matrix[(perm[0]) % 4][0], matrix[(perm[0] + 1) % 4][0], matrix[(perm[0] + 2) % 4][0], matrix[(perm[0] + 3) % 4][0] = matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0]
-            matrix[(perm[1]) % 4][1], matrix[(perm[1] + 1) % 4][1], matrix[(perm[1] + 2) % 4][1], matrix[(perm[1] + 3) % 4][1] = matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1]
-            matrix[(perm[2]) % 4][2], matrix[(perm[2] + 1) % 4][2], matrix[(perm[2] + 2) % 4][2], matrix[(perm[2] + 3) % 4][2] = matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2]
-            matrix[(perm[3]) % 4][3], matrix[(perm[3] + 1) % 4][3], matrix[(perm[3] + 2) % 4][3], matrix[(perm[3] + 3) % 4][3] = matrix[0][3], matrix[1][3], matrix[2][3], matrix[3][3]
-
-        return matrix
+            permutation = PERMUTATIONS[index]
+            
+            # Apply the permutation to shift rows in a shuffled manner
+            shuffled_state = [[0] * 4 for _ in range(4)]
+            for col in range(4):
+                for row in range(4):
+                    shuffled_state[(permutation[row] + col) % 4][col] = state[row][col]
+                    
+            # Update the original state matrix with the inverse shuffled values
+            state = [list(row) for row in shuffled_state]
+            
+        return state
 
     def inv_mix_columns(self, state, shuffled = False):
-        """Inverse Mix Columns transformation."""
-        # Apply the inverse MixColumns operation
+        '''
+        Perform inverse MixColumns transformation on the state matrix. Code adapted from [1]
+
+        Parameters:
+        - state: The 4x4 state matrix.
+        - shuffled: Boolean flag for shuffled inverse column mixing.
+
+        Returns:
+        - The state matrix after inverse column mixing.
+        '''
         if not shuffled:
             for j in range(4):
 
@@ -225,7 +319,6 @@ class AES:
             columns = []
             for i in range(4):
                 column = state[i]
-                # print("coluns inv_mix_col: ", i, column)
                 temp = copy(column)
                 a = temp[0]
                 b = temp[1]
@@ -238,21 +331,16 @@ class AES:
                 column[3] = self.gmul(14, d) ^ self.gmul(9, c) ^ self.gmul(13, b) ^ self.gmul(11, a)
                 columns.append(column)
 
-            # Apply inverse column offset if shuffled
-            offset = self.mix_columns_offset
             for index, column in enumerate(columns):
-                # Shift column by the negative offset to undo the previous shuffle
                 state[(index + self.mix_columns_offset) % 4] = column
             return state
+        
     def encryption_block(self, text):
         
         #Convert the text to a 4x4 matrix
         block = text2matrix(text)
         debug_print(f"round[ 0].input  {hexlify(bytes(matrix2text(block))).decode('utf-8')}", self.debug)
-        debug_print(f"round[ 0].k_sch  {hexlify(bytes(self.round_keys[0])).decode('utf-8')}", self.debug)  # Round key
-
-        # print("block: ", block)
-        # print("self.round_keys[0]: ", self.round_keys[0])
+        debug_print(f"round[ 0].k_sch  {hexlify(bytes(self.round_keys[0])).decode('utf-8')}", self.debug)
 
         #Step 1: Add the first round key
         state = self.add_round_key(block, self.round_keys[0])
@@ -452,125 +540,4 @@ class AES:
         plaintext = bytes(matrix2text(state))
         debug_print(f"round[10].output {hexlify(plaintext).decode('utf-8')}", self.debug)
     
-        return plaintext
-
-    def aes_encrypt(self, plaintext):
-        j = 0
-        # Step 1: Pad the plaintext to ensure it's a multiple of 16 bytes
-        padded_plaintext = pad_pkcs7(plaintext)
-        # padded_plaintext = plaintext
-
-        start = time.time_ns()
-
-        # Step 2: Encrypt each 16-byte block of the padded plaintext
-        ciphertext_blocks = []
-        for i in range(0, len(padded_plaintext), 16):
-            # print(f"\nENC BLOCO {j}\n")
-            block = padded_plaintext[i:i+16]  # Get a 16-byte block
-            cipher_block = self.encryption_block(block)
-            ciphertext_blocks.append(cipher_block)
-            j+=1
-
-        elapsed_time = time.time_ns() - start
-
-        # Combine all ciphertext blocks into the final ciphertext
-        ciphertext = b''.join(ciphertext_blocks)
-        return ciphertext
-
-    def saes_encrypt(self, plaintext):
-
-        # Step 1: Pad the plaintext to ensure it's a multiple of 16 bytes
-        padded_plaintext = pad_pkcs7(plaintext)
-        # self.skey = text2matrix(self.key)
-
-        # Initialize ciphertext storage
-        ciphertext_blocks = []
-
-        if self.skey:
-            self.shuffle_key_number = random_shuffle_number(self.skey)
-
-            # Get a random shuffle round and initialize other variables
-            self.shuffle_round = int((self.shuffle_key_number % 9) + 1)
-            # debug_print(f"self.shuffle_round: {self.shuffle_round}", self.debug)
-            ss_box = SUBSTITUTION_BOX.copy()
-            self.s_box_shuffled = shuffle_sbox(ss_box, self.shuffle_key_number)
-            calculate_inverse_matrix(self.inverse_s_box_shuffled, self.s_box_shuffled)
-
-            
-            self.round_key_offset = int(self.shuffle_key_number % 16)
-            self.mix_columns_offset = int(self.shuffle_key_number % 4)
-            self.skey = text2matrix(self.skey)
-
-            start = time.time_ns()
-
-            # Encrypt each 16-byte block of the padded plaintext
-            for i in range(0, len(padded_plaintext), 16):
-                block = padded_plaintext[i:i+16]  # Get a 16-byte block
-                cipher_block = self.saes_encryption_block(block)
-                ciphertext_blocks.append(cipher_block)
-
-            elapsed_time = time.time_ns() - start
-
-        debug_print("\n===============================================================\n", self.debug)
-        
-        for ct_block in ciphertext_blocks:
-            debug_print(f"saes_encrypt block {hexlify(ct_block).decode('utf-8')}", self.debug)
-        
-        debug_print("\n===============================================================\n", self.debug)
-
-        # Combine all ciphertext blocks into the final ciphertext
-        ciphertext = b''.join(ciphertext_blocks)
-        return ciphertext
-    
-    def aes_decrypt(self, ciphertext):
-        # Step 1: Ensure ciphertext length is a multiple of 16
-        ciphertext = ciphertext[:len(ciphertext) - len(ciphertext) % 16]
-
-        start = time.time_ns()
-
-        # Step 2: Decrypt each 16-byte block of the ciphertext
-        plaintext_blocks = []
-        j = 0
-        for i in range(0, len(ciphertext), 16):
-            debug_print(f"\nDEC BLOCO {j}\n", self.debug)
-            block = ciphertext[i:i+16]  # Get a 16-byte block
-            plain_block = self.decryption_block(block)  # Implement decryption block
-            j+=1
-            # Check if this is the last block, and if so, remove padding
-            if i + 16 == len(ciphertext):
-                plain_block = unpad_pkcs7(plain_block)
-
-            plaintext_blocks.append(plain_block)
-
-        elapsed_time = time.time_ns() - start
-
-        # Combine all plaintext blocks into the final plaintext
-        plaintext = b''.join(plaintext_blocks)
-
-        return plaintext
-
-    def saes_decrypt(self, ciphertext):
-        # Initialize plaintext storage
-        plaintext_blocks = []
-
-        start = time.time_ns()
-
-        # Decrypt each 16-byte block of the ciphertext
-        for i in range(0, len(ciphertext), 16):
-            block = ciphertext[i:i+16]
-            plain_block = self.saes_decryption_block(block)
-            plaintext_blocks.append(plain_block)
-
-        elapsed_time = time.time_ns() - start
-
-        debug_print("\n===============================================================\n", self.debug)
-        
-        for plaintext_block in plaintext_blocks:
-            debug_print("saes_decrypt block " + hexlify(plaintext_block).decode("utf-8"), self.debug)
-        
-        debug_print("\n===============================================================\n", self.debug)
-        # Combine all decrypted blocks and remove padding
-        padded_plaintext = b''.join(plaintext_blocks)
-        plaintext = unpad_pkcs7(padded_plaintext)
-        debug_print(f"plaintext: {plaintext}", self.debug)
         return plaintext

@@ -5,17 +5,38 @@ A modified version of the well-known symmetric encryption algorithm, AES.
 
 How to execute:
 
-```shell
-echo some_plaintext | python main.py enc some_key some_skey] [--time] [--debug]
-```
+### Create a virtual environment and install requirements
 
 ```shell
-echo ciphertext | python main.py dec some_key [skey] [--time] [--debug]
+python3 -m venv venv
+source venv/bin/activate
+pip3 install -r requirements.txt
 ```
 
+### Encrypt some plaintext:
+
 ```shell
-echo some_plaintext | python main.py speed some_key
+echo some_plaintext | python main.py enc some_key some_skey] (--time | -t) (--debug | -d)
 ```
+
+### Decrypt some ciphertext:
+
+```shell
+echo ciphertext | python main.py dec some_key [some_skey] (--time | -t) (--debug | -d)
+```
+
+### Evaluate the performance in nanoseconds of both encryption and decription using AES, Custom_AES and Shuffled-AES:
+
+```shell
+echo some_plaintext | python main.py speed some_key [some_skey] (--time | -t) (--debug | -d)
+```
+
+## References
+
+ * [1] - https://github.com/pelisalacarta-ce/pelisalacarta-ce/blob/master/python/main-classic/lib/jscrypto.py
+
+ * [2] - https://gist.github.com/raullenchai/2920069#file-pyaes-py
+
 ## Documentation:
 
  * https://www.youtube.com/watch?v=O4xNJsjtN6E
@@ -23,6 +44,8 @@ echo some_plaintext | python main.py speed some_key
  * https://www.youtube.com/watch?v=C4ATDMIz5wc
 
  * https://www.youtube.com/watch?v=4zx5bM2OcvA
+
+ * https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf
 
 ### Articles
 
@@ -42,10 +65,4 @@ echo some_plaintext | python main.py speed some_key
 
  * https://github.com/francisrstokes/githublog/blob/main/2022/6/15/rolling-your-own-crypto-aes.md
 
- * https://gist.github.com/raullenchai/2920069
  
- * https://github.com/boppreh/aes
- 
- * https://github.com/bluekeybo/AES
-
- * https://github.com/DNTM2802/shuffled-aes/blob/master/SAES.py

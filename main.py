@@ -47,8 +47,7 @@ def main():
                 print(hexa,end="")
 
         debug_print(f"Encrypted Text (hex): {hexlify(ciphertext).decode('utf-8')}", args.debug)
-        if args.time:
-            debug_print(f"Encryption Time (ns): {enc_time}", args.debug)
+        print_time(f"\nEncryption Time (ns): {enc_time}\n", args.time)
 
     elif args.mode == 'dec':
     
@@ -66,8 +65,7 @@ def main():
             decrypted_text, dec_time = decryptor.saes_decrypt(ciphertext_bytes)
 
         debug_print(f"Decrypted Text (hex): {hexlify(decrypted_text).decode('utf-8')}", args.debug)
-        if args.time:
-            debug_print(f"Decryption Time (ns): {dec_time}", args.debug)
+        print_time(f"Decryption Time (ns): {dec_time}\n", args.debug)
 
         if not args.debug:
             # Stdout
